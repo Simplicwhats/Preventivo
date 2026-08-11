@@ -326,7 +326,8 @@
         const SUPABASE_URL = "https://kgidkxaqvgcqiqwqxvut.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtnaWRreGFxdmdjcWlxd3F4dnV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0ODc0MzAsImV4cCI6MjA5ODA2MzQzMH0.DLQoO8_q_QeW-a084ZDCFRc0OIeuEDaYpkUg2tSCB0E";
 
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // CORREÇÃO: Mudamos a variável de 'supabase' para 'db' para não conflitar com a biblioteca
+        const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let abas = [];
         let abaAtivaId = 'aba_padrao';
@@ -356,14 +357,14 @@
 
             try {
                 // 1. Buscar Abas
-                const { data: dataAbas, error: errAbas } = await supabase.from('abas').select('*').order('created_at', { ascending: true });
+                const { data: dataAbas, error: errAbas } = await db.from('abas').select('*').order('created_at', { ascending: true });
                 if (errAbas) throw errAbas;
 
                 if (dataAbas && dataAbas.length > 0) {
                     abas = dataAbas;
                 } else {
                     // Garante ao menos uma aba padrão se o banco estiver limpo
-                    await supabase.from('abas').insert([{ id: 'aba_padrao', nome: 'Preventivo 11/08' }]);
+                    await db.from('abas').insert([{ id: 'aba_padrao', nome: 'Preventivo 11/08' }]);
                     abas = [{ id: 'aba_padrao', nome: 'Preventivo 11/08' }];
                 }
 
@@ -372,7 +373,7 @@
                 }
 
                 // 2. Buscar Clientes
-                const { data: dataClientes, error: errClientes } = await supabase.from('clientes').select('*');
+                const { data: dataClientes, error: errClientes } = await db.from('clientes').select('*');
                 if (errClientes) throw errClientes;
 
                 clientes = (dataClientes || []).map(c => ({
@@ -387,7 +388,7 @@
                 }));
 
                 // 3. Buscar Configurações
-                const { data: dataConfig } = await supabase.from('configuracoes').select('*').eq('chave', 'templateMsg').single();
+                const { data: dataConfig } = await db.from('configuracoes').select('*').eq('chave', 'templateMsg').single();
                 if (dataConfig) {
                     templateMsg = dataConfig.valor;
                     document.getElementById('template-mensagem').value = templateMsg;
@@ -405,7 +406,7 @@
         }
 
         function assinarRealtime() {
-            supabase.channel('custom-all-channel')
+            db.channel('custom-all-channel')
                 .on('postgres_changes', { event: '*', schema: 'public' }, payload => {
                     // Evita "flicker" recarregando em lote
                     clearTimeout(debounceTimer);
@@ -417,14 +418,14 @@
         }
 
         async function carregarDadosSilencioso() {
-            const { data: dataAbas } = await supabase.from('abas').select('*').order('created_at', { ascending: true });
+            const { data: dataAbas } = await db.from('abas').select('*').order('created_at', { ascending: true });
             if (dataAbas) {
                 abas = dataAbas;
                 if (!abas.some(a => a.id === abaAtivaId) && abas.length > 0) abaAtivaId = abas[0].id;
                 renderizarAbas();
             }
 
-            const { data: dataClientes } = await supabase.from('clientes').select('*');
+            const { data: dataClientes } = await db.from('clientes').select('*');
             if (dataClientes) {
                 clientes = dataClientes.map(c => ({
                     id: Number(c.id),
@@ -478,7 +479,7 @@
                 const newId = 'aba_' + Date.now();
                 const novaAba = { id: newId, nome: nomeAba.trim() };
                 
-                await supabase.from('abas').insert([novaAba]);
+                await db.from('abas').insert([novaAba]);
                 abaAtivaId = newId;
                 await carregarDadosSilencioso();
             }
@@ -497,7 +498,7 @@
             if (!aba) return;
             let novoNome = prompt("Renomear aba para:", aba.nome);
             if (novoNome && novoNome.trim() !== '' && novoNome !== aba.nome) {
-                await supabase.from('abas').update({ nome: novoNome.trim() }).eq('id', id);
+                await db.from('abas').update({ nome: novoNome.trim() }).eq('id', id);
                 await carregarDadosSilencioso();
             }
         }
@@ -509,10 +510,8 @@
                 return;
             }
             if(confirm(`Tem certeza que deseja excluir esta aba e TODOS os clientes nela?`)) {
-                // Ao deletar a aba (se o banco estiver configurado com CASCADE ON DELETE), os clientes nela irão junto.
-                // Mas para garantir, vamos apagar os clientes via código:
-                await supabase.from('clientes').delete().eq('aba_id', id);
-                await supabase.from('abas').delete().eq('id', id);
+                await db.from('clientes').delete().eq('aba_id', id);
+                await db.from('abas').delete().eq('id', id);
                 
                 if(abaAtivaId === id) {
                     const restante = abas.filter(a => a.id !== id);
@@ -547,7 +546,7 @@
         async function salvarTemplate() {
             templateMsg = document.getElementById('template-mensagem').value;
             
-            const { error } = await supabase.from('configuracoes').upsert({ chave: 'templateMsg', valor: templateMsg });
+            const { error } = await db.from('configuracoes').upsert({ chave: 'templateMsg', valor: templateMsg });
             if(error) console.error(error);
 
             alert("Template salvo com sucesso no banco de dados!");
@@ -599,19 +598,16 @@
 
         // ================= FUNÇÃO PRINCIPAL DE RENDERIZAÇÃO =================
         function renderizar() {
-            // Filtrar apenas clientes da ABA ATUAL
             const clientesDaAba = clientes.filter(c => c.abaId === abaAtivaId);
             const tbody = document.getElementById('tabela-clientes');
             const termoBusca = document.getElementById('filtro-busca').value.toLowerCase();
             
-            // 1. Filtragem para a Tabela
             let filtrados = clientesDaAba.filter(c => c.nome.toLowerCase().includes(termoBusca) || c.telefone.includes(termoBusca));
             if (statusAtivo !== 'Todos') filtrados = filtrados.filter(c => c.status === statusAtivo);
             if (faixaAtiva !== 'Todas') filtrados = filtrados.filter(c => c.faixaAtraso === faixaAtiva);
             
             filtrados = ordenarClientes(filtrados);
 
-            // 2. Cálculo de Métricas Gerais da Aba
             const valorTotal = clientesDaAba.reduce((acc, curr) => acc + curr.valor, 0);
             const valorPago = clientesDaAba.filter(c => c.status === 'Pago').reduce((acc, curr) => acc + curr.valor, 0);
             const valorConfirmado = clientesDaAba.filter(c => c.status === 'Confirmado').reduce((acc, curr) => acc + curr.valor, 0);
@@ -625,7 +621,6 @@
             document.getElementById('card-acionados').innerText = numAcionados + " / " + clientesDaAba.length;
             document.getElementById('card-pagantes').innerText = clientesDaAba.filter(c => c.status === 'Pago').length;
 
-            // 3. Barra de Progresso
             const pctPago = valorTotal > 0 ? (valorPago / valorTotal) * 100 : 0;
             const pctConf = valorTotal > 0 ? (valorConfirmado / valorTotal) * 100 : 0;
             const pctAberto = valorTotal > 0 ? (valorAberto / valorTotal) * 100 : 100;
@@ -650,7 +645,6 @@
             document.getElementById('legenda-val-recusado').innerText = valorRecusado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             document.getElementById('legenda-pct-recusado').innerText = `${pctRecusado.toFixed(1)}%`;
 
-            // 4. Renderização da Distribuição do Saldo em Aberto por Faixa
             const containerFaixas = document.getElementById('grid-faixas-resumo');
             if(containerFaixas) {
                 containerFaixas.innerHTML = '';
@@ -683,7 +677,6 @@
                 });
             }
 
-            // 5. Renderização da Distribuição do Valor PAGO por Faixa (INJETADO AQUI)
             const containerFaixasPago = document.getElementById('grid-faixas-pago');
             if (containerFaixasPago) {
                 containerFaixasPago.innerHTML = '';
@@ -717,7 +710,6 @@
                 });
             }
 
-            // 6. Renderização da Tabela
             tbody.innerHTML = '';
             
             if (filtrados.length === 0) {
@@ -779,7 +771,7 @@
             let cl = clientes.find(c => c.id === id);
             if (cl) {
                 cl.status = status;
-                await supabase.from('clientes').update({ status: status }).eq('id', id);
+                await db.from('clientes').update({ status: status }).eq('id', id);
                 renderizar();
             }
         }
@@ -788,7 +780,7 @@
             let cl = clientes.find(c => c.id === id);
             if (cl) {
                 cl.faixaAtraso = faixa;
-                await supabase.from('clientes').update({ faixa_atraso: faixa }).eq('id', id);
+                await db.from('clientes').update({ faixa_atraso: faixa }).eq('id', id);
                 renderizar();
             }
         }
@@ -797,7 +789,7 @@
             let cl = clientes.find(c => c.id === id);
             if(cl) {
                 cl.motivo = motivo;
-                await supabase.from('clientes').update({ motivo: motivo }).eq('id', id);
+                await db.from('clientes').update({ motivo: motivo }).eq('id', id);
             }
         }
 
@@ -819,7 +811,7 @@
                     motivo: ''
                 };
 
-                const { data, error } = await supabase.from('clientes').insert([novoCliente]).select();
+                const { data, error } = await db.from('clientes').insert([novoCliente]).select();
                 if(error) {
                     console.error("Erro ao salvar:", error);
                     alert("Erro ao salvar cliente.");
@@ -873,7 +865,7 @@
 
             if (insercoes.length > 0) {
                 atualizarStatusConexao(false, "Importando...");
-                const { error } = await supabase.from('clientes').insert(insercoes);
+                const { error } = await db.from('clientes').insert(insercoes);
                 if(error) console.error("Erro no lote:", error);
                 
                 await carregarDadosSilencioso();
@@ -893,14 +885,12 @@
             
             if (telefonesParaBaixa.length > 0) {
                 atualizarStatusConexao(false, "Baixando...");
-                // Filtramos os IDs dos clientes DA ABA ATUAL que estão na lista de telefones
                 const idsParaAtualizar = clientes
                     .filter(c => c.abaId === abaAtivaId && telefonesParaBaixa.includes(c.telefone))
                     .map(c => c.id);
 
                 if(idsParaAtualizar.length > 0) {
-                    // Update em lote no Supabase usando 'in'
-                    const { error } = await supabase
+                    const { error } = await db
                         .from('clientes')
                         .update({ status: 'Acionado' })
                         .in('id', idsParaAtualizar);
@@ -930,7 +920,7 @@
                 
                 if (c.status === 'Pendente') {
                     c.status = 'Acionado';
-                    await supabase.from('clientes').update({ status: 'Acionado' }).eq('id', id);
+                    await db.from('clientes').update({ status: 'Acionado' }).eq('id', id);
                     renderizar();
                 }
                 
@@ -940,7 +930,7 @@
 
         async function removerCliente(id) {
             if (confirm("Tem certeza que deseja excluir este cliente?")) {
-                await supabase.from('clientes').delete().eq('id', id);
+                await db.from('clientes').delete().eq('id', id);
                 clientes = clientes.filter(c => c.id !== id);
                 renderizar();
             }
@@ -951,7 +941,7 @@
             if (countAba === 0) return alert("Esta aba já está limpa.");
             if (confirm(`Tem certeza que deseja apagar TODOS os ${countAba} clientes DESTA ABA? Esta ação não pode ser desfeita.`)) {
                 atualizarStatusConexao(false, "Limpando Aba...");
-                await supabase.from('clientes').delete().eq('aba_id', abaAtivaId);
+                await db.from('clientes').delete().eq('aba_id', abaAtivaId);
                 clientes = clientes.filter(c => c.abaId !== abaAtivaId);
                 atualizarStatusConexao(true);
                 renderizar();
@@ -960,7 +950,6 @@
 
         function exportarExcel() {
             let csv = "Nome,Telefone,Valor,Faixa de Atraso,Status,Motivo\n";
-            // Exporta só da aba atual
             let filtrados = clientes.filter(c => c.abaId === abaAtivaId);
             filtrados.forEach(c => {
                 let v = c.valor.toFixed(2).replace('.', ',');
@@ -978,7 +967,6 @@
             document.body.removeChild(link);
         }
 
-        // ================= UTILS MODAIS =================
         function abrirModal() { document.getElementById('modal').classList.remove('hidden'); }
         function fecharModal() { document.getElementById('modal').classList.add('hidden'); }
         
@@ -988,11 +976,9 @@
         }
         function fecharModalLote() { document.getElementById('modal-lote').classList.add('hidden'); }
 
-        // Start
         window.onload = () => {
             carregarDados();
         };
-
     </script>
 </body>
 </html>
