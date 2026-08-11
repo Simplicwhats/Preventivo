@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CRC - Gestão de Cobrança e Preventivo por Abas</title>
+    <title>CRC - Gestão de Cobrança e Preventivo (Supabase)</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Fonte Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- SDKs do Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- SDK do Supabase v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -59,13 +58,13 @@
                     <span id="status-conexao-dot" class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse shrink-0"></span>
                     <div>
                         <p id="status-conexao-texto" class="text-xs font-medium text-slate-200">Sincronizando...</p>
-                        <p class="text-[10px] text-slate-500">Nuvem Firebase em Tempo Real</p>
+                        <p class="text-[10px] text-slate-500">Banco Supabase Postgres</p>
                     </div>
                 </div>
             </div>
 
             <div class="text-[10px] text-slate-500 text-center border-t border-slate-800/80 pt-4">
-                Painel Interno CRC • Versão Multi-Abas
+                Painel Interno CRC • Versão Supabase
             </div>
         </aside>
 
@@ -312,23 +311,13 @@
     </div>
 
     <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyDYyKAnvRvB6FZ5w6_2IeYDR5keiQeXFoc",
-            authDomain: "preventivo-8f0ae.firebaseapp.com",
-            projectId: "preventivo-8f0ae",
-            storageBucket: "preventivo-8f0ae.firebasestorage.app",
-            messagingSenderId: "159332398928",
-            appId: "1:159332398928:web:9986f5368ae3ed5f661e55",
-            measurementId: "G-TYVEMVP338"
-        };
+        // CONFIGURAÇÕES DO SUPABASE
+        const SUPABASE_URL = "https://kgidkxaqvgcqiqwqxvut.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtnaWRreGFxdmdjcWlxd3F4dnV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0ODc0MzAsImV4cCI6MjA5ODA2MzQzMH0.DLQoO8_q_QeW-a084ZDCFRc0OIeuEDaYpkUg2tSCB0E";
 
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const docRef = db.collection("crc_dados").doc("painel_principal");
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        let abas = [
-            { id: 'aba_padrao', nome: 'Preventivo 11/08' }
-        ];
+        let abas = [];
         let abaAtivaId = 'aba_padrao';
 
         let clientes = [];
@@ -350,50 +339,80 @@
             '+720 dias'
         ];
 
-        docRef.onSnapshot((doc) => {
+        // Inicialização e Carregamento do Supabase
+        async function carregarDados() {
+            atualizarStatusConexao(false);
+
+            try {
+                // 1. Buscar Abas
+                const { data: dataAbas, error: errAbas } = await supabase.from('abas').select('*').order('created_at', { ascending: true });
+                if (errAbas) throw errAbas;
+
+                if (dataAbas && dataAbas.length > 0) {
+                    abas = dataAbas;
+                } else {
+                    // Garante ao menos uma aba padrão se o banco estiver limpo
+                    await supabase.from('abas').insert([{ id: 'aba_padrao', nome: 'Preventivo 11/08' }]);
+                    abas = [{ id: 'aba_padrao', nome: 'Preventivo 11/08' }];
+                }
+
+                if (!abas.some(a => a.id === abaAtivaId)) {
+                    abaAtivaId = abas[0].id;
+                }
+
+                // 2. Buscar Clientes
+                const { data: dataClientes, error: errClientes } = await supabase.from('clientes').select('*');
+                if (errClientes) throw errClientes;
+
+                clientes = (dataClientes || []).map(c => ({
+                    id: Number(c.id),
+                    abaId: c.aba_id,
+                    nome: c.nome,
+                    telefone: c.telefone,
+                    valor: parseFloat(c.valor),
+                    faixaAtraso: normalizarFaixa(c.faixa_atraso),
+                    status: c.status,
+                    motivo: c.motivo || ''
+                }));
+
+                // 3. Buscar Configurações
+                const { data: dataConfig } = await supabase.from('configuracoes').select('*').eq('id', 1).single();
+                if (dataConfig && dataConfig.template_mensagem) {
+                    templateMsg = dataConfig.template_mensagem;
+                    document.getElementById('template-mensagem').value = templateMsg;
+                }
+
+                atualizarStatusConexao(true);
+                renderizar();
+            } catch (error) {
+                console.error("Erro ao carregar dados do Supabase:", error);
+                atualizarStatusConexao(false, "Erro no Banco");
+            }
+        }
+
+        function assinarRealtime() {
+            supabase
+                .channel('mudancas-db')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'abas' }, () => carregarDados())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, () => carregarDados())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'configuracoes' }, () => carregarDados())
+                .subscribe();
+        }
+
+        function atualizarStatusConexao(conectado, mensagemCustom = "") {
             const dot = document.getElementById('status-conexao-dot');
             const texto = document.getElementById('status-conexao-texto');
             
             if (dot && texto) {
-                dot.className = "w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shrink-0";
-                texto.innerText = "Nuvem Conectada";
-            }
-
-            if (doc.exists) {
-                const dados = doc.data();
-
-                if (dados.abas && dados.abas.length > 0) {
-                    abas = dados.abas;
-                }
-                if (dados.abaAtivaId && abas.some(a => a.id === dados.abaAtivaId)) {
-                    abaAtivaId = dados.abaAtivaId;
+                if (conectado) {
+                    dot.className = "w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shrink-0";
+                    texto.innerText = mensagemCustom || "Supabase Conectado";
                 } else {
-                    abaAtivaId = abas[0].id;
+                    dot.className = "w-2.5 h-2.5 bg-rose-500 rounded-full shrink-0";
+                    texto.innerText = mensagemCustom || "Sincronizando...";
                 }
-
-                clientes = (dados.clientes || []).map(c => ({
-                    ...c,
-                    abaId: c.abaId || abas[0].id, // Migração automática para clientes antigos
-                    faixaAtraso: normalizarFaixa(c.faixaAtraso)
-                }));
-
-                if (dados.templateMsg) {
-                    templateMsg = dados.templateMsg;
-                    document.getElementById('template-mensagem').value = templateMsg;
-                }
-            } else {
-                salvarNoBanco();
             }
-            renderizar();
-        }, (error) => {
-            console.error("Erro na conexão com Firestore:", error);
-            const dot = document.getElementById('status-conexao-dot');
-            const texto = document.getElementById('status-conexao-texto');
-            if (dot && texto) {
-                dot.className = "w-2.5 h-2.5 bg-rose-500 rounded-full shrink-0";
-                texto.innerText = "Erro ao Conectar";
-            }
-        });
+        }
 
         function normalizarFaixa(faixa) {
             if (!faixa) return 'C | 61 a 90';
@@ -411,54 +430,39 @@
             return 'C | 61 a 90';
         }
 
-        function salvarNoBanco() {
-            ordenarClientes();
-            docRef.set({
-                abas: abas,
-                abaAtivaId: abaAtivaId,
-                clientes: clientes,
-                templateMsg: templateMsg,
-                ultimaAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
-            }).catch(error => {
-                console.error("Erro ao salvar no banco:", error);
-            });
-        }
-
-        // Funções para Gerenciamento das Abas
-        function criarNovaAba() {
+        // Operações de Abas com Supabase
+        async function criarNovaAba() {
             let nomeAba = prompt("Informe o nome para a nova aba (Ex: Preventivo dia 12/08):");
             if (!nomeAba || !nomeAba.trim()) return;
 
-            let novaAba = {
-                id: 'aba_' + Date.now(),
-                nome: nomeAba.trim()
-            };
-
-            abas.push(novaAba);
-            abaAtivaId = novaAba.id;
-            salvarNoBanco();
-            renderizar();
+            let idAba = 'aba_' + Date.now();
+            const { error } = await supabase.from('abas').insert([{ id: idAba, nome: nomeAba.trim() }]);
+            
+            if (!error) {
+                abaAtivaId = idAba;
+                carregarDados();
+            } else {
+                alert("Erro ao criar nova aba.");
+            }
         }
 
         function selecionarAba(id) {
             abaAtivaId = id;
-            salvarNoBanco();
             renderizar();
         }
 
-        function renomearAba(id) {
+        async function renomearAba(id) {
             let aba = abas.find(a => a.id === id);
             if (!aba) return;
 
             let novoNome = prompt("Renomear aba:", aba.nome);
             if (novoNome && novoNome.trim()) {
-                aba.nome = novoNome.trim();
-                salvarNoBanco();
-                renderizar();
+                const { error } = await supabase.from('abas').update({ nome: novoNome.trim() }).eq('id', id);
+                if (!error) carregarDados();
             }
         }
 
-        function excluirAba(id) {
+        async function excluirAba(id) {
             if (abas.length <= 1) {
                 alert("Você precisa ter pelo menos uma aba ativa.");
                 return;
@@ -468,14 +472,13 @@
             let totalClientesAba = clientes.filter(c => c.abaId === id).length;
 
             if (confirm(`Tem certeza que deseja excluir a aba "${aba.nome}" e os seus ${totalClientesAba} cliente(s)?`)) {
-                abas = abas.filter(a => a.id !== id);
-                clientes = clientes.filter(c => c.abaId !== id);
-
-                if (abaAtivaId === id) {
-                    abaAtivaId = abas[0].id;
+                const { error } = await supabase.from('abas').delete().eq('id', id);
+                if (!error) {
+                    if (abaAtivaId === id) {
+                        abaAtivaId = abas.filter(a => a.id !== id)[0].id;
+                    }
+                    carregarDados();
                 }
-                salvarNoBanco();
-                renderizar();
             }
         }
 
@@ -504,10 +507,12 @@
             });
         }
 
-        function salvarTemplate() {
+        async function salvarTemplate() {
             templateMsg = document.getElementById('template-mensagem').value;
-            salvarNoBanco();
-            alert("Template de mensagem atualizado com sucesso!");
+            const { error } = await supabase.from('configuracoes').upsert({ id: 1, template_mensagem: templateMsg });
+            if (!error) {
+                alert("Template de mensagem atualizado com sucesso!");
+            }
         }
 
         function ordenarClientes() {
@@ -552,7 +557,6 @@
             renderizarAbas();
             ordenarClientes();
 
-            // Filtrar apenas clientes pertencentes à aba ativa selecionada
             let clientesDaAba = clientes.filter(c => c.abaId === abaAtivaId);
 
             let acionados = clientesDaAba.filter(c => c.status === 'Acionado' || c.status === 'Confirmado' || c.status === 'Pago').length;
@@ -589,7 +593,6 @@
             document.getElementById('legenda-val-recusado').innerText = valorRecusado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             document.getElementById('legenda-pct-recusado').innerText = `${pctRecusado}%`;
 
-            // Grid de faixas da aba ativa
             const containerFaixas = document.getElementById('grid-faixas-resumo');
             containerFaixas.innerHTML = '';
 
@@ -611,7 +614,6 @@
                 }
             });
 
-            // Tabela com busca e filtros aplicados apenas à aba ativa
             const termoBusca = document.getElementById('filtro-busca').value.toLowerCase();
             let clientesFiltrados = clientesDaAba.filter(c => {
                 let correspondeBusca = c.nome.toLowerCase().includes(termoBusca) || c.telefone.includes(termoBusca);
@@ -680,19 +682,22 @@
         function abrirModalLote() { document.getElementById('modal-lote').classList.remove('hidden'); }
         function fecharModalLote() { document.getElementById('modal-lote').classList.add('hidden'); document.getElementById('texto-lote').value = ''; }
 
-        function atualizarStatusCliente(id, novoStatus) {
+        // Operações nos Clientes com Supabase
+        async function atualizarStatusCliente(id, novoStatus) {
             let cliente = clientes.find(c => c.id === id);
             if (cliente) { 
                 cliente.status = novoStatus; 
-                salvarNoBanco(); 
+                renderizar();
+                await supabase.from('clientes').update({ status: novoStatus }).eq('id', id);
             }
         }
 
-        function atualizarFaixaCliente(id, novaFaixa) {
+        async function atualizarFaixaCliente(id, novaFaixa) {
             let cliente = clientes.find(c => c.id === id);
             if (cliente) { 
                 cliente.faixaAtraso = novaFaixa; 
-                salvarNoBanco(); 
+                renderizar();
+                await supabase.from('clientes').update({ faixa_atraso: novaFaixa }).eq('id', id);
             }
         }
 
@@ -701,35 +706,41 @@
             if (cliente) { 
                 cliente.motivo = novoMotivo; 
                 clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(() => {
-                    salvarNoBanco();
+                debounceTimer = setTimeout(async () => {
+                    await supabase.from('clientes').update({ motivo: novoMotivo }).eq('id', id);
                 }, 800);
             }
         }
 
-        function salvarCliente(e) {
+        async function salvarCliente(e) {
             e.preventDefault();
-            clientes.push({
-                id: Date.now() + Math.random(),
-                abaId: abaAtivaId, // Atribui automaticamente à aba aberta
+            const novoCliente = {
+                id: Date.now(),
+                aba_id: abaAtivaId,
                 nome: document.getElementById('nome').value.trim(),
                 telefone: document.getElementById('telefone').value.replace(/\D/g, ''),
                 valor: parseFloat(document.getElementById('valor').value),
-                faixaAtraso: document.getElementById('faixaAtraso').value,
+                faixa_atraso: document.getElementById('faixaAtraso').value,
                 status: 'Pendente',
                 motivo: ''
-            });
-            document.getElementById('form-cliente').reset();
-            fecharModal();
-            salvarNoBanco();
+            };
+
+            const { error } = await supabase.from('clientes').insert([novoCliente]);
+            if (!error) {
+                document.getElementById('form-cliente').reset();
+                fecharModal();
+                carregarDados();
+            } else {
+                alert("Erro ao salvar cliente no banco.");
+            }
         }
 
-        function processarImportacaoLote() {
+        async function processarImportacaoLote() {
             const texto = document.getElementById('texto-lote').value.trim();
             if(!texto) { alert("Cole os dados no campo indicado."); return; }
 
             const linhas = texto.split('\n');
-            let importadosCount = 0;
+            let novosClientes = [];
 
             linhas.forEach((linha, index) => {
                 if (!linha.trim()) return;
@@ -744,31 +755,35 @@
                     let faixa = normalizarFaixa(faixaRaw);
 
                     if (nome && telefone && !isNaN(valor)) {
-                        clientes.push({ 
-                            id: Date.now() + index + Math.random(), 
-                            abaId: abaAtivaId, // Salva na aba ativa
-                            nome, 
-                            telefone, 
-                            valor, 
-                            faixaAtraso: faixa, 
+                        novosClientes.push({ 
+                            id: Date.now() + index, 
+                            aba_id: abaAtivaId, 
+                            nome: nome, 
+                            telefone: telefone, 
+                            valor: valor, 
+                            faixa_atraso: faixa, 
                             status: 'Pendente', 
                             motivo: '' 
                         });
-                        importadosCount++;
                     }
                 }
             });
 
-            if (importadosCount > 0) {
-                alert(`${importadosCount} cliente(s) importado(s) na aba atual!`);
-                fecharModalLote();
-                salvarNoBanco();
+            if (novosClientes.length > 0) {
+                const { error } = await supabase.from('clientes').insert(novosClientes);
+                if (!error) {
+                    alert(`${novosClientes.length} cliente(s) importado(s) na aba atual!`);
+                    fecharModalLote();
+                    carregarDados();
+                } else {
+                    alert("Erro ao importar lote no banco.");
+                }
             } else {
                 alert("Erro ao identificar os dados. Formato esperado: Nome; Telefone; Valor; Faixa");
             }
         }
 
-        function processarBaixaEmMassa() {
+        async function processarBaixaEmMassa() {
             const texto = document.getElementById('texto-lote').value.trim();
             if(!texto) { alert("Cole a lista de telefones no campo indicado."); return; }
 
@@ -781,28 +796,24 @@
                 return;
             }
 
-            let alteradosCount = 0;
+            const { data, error } = await supabase
+                .from('clientes')
+                .update({ status: 'Acionado' })
+                .in('telefone', telefonesLista)
+                .eq('aba_id', abaAtivaId)
+                .eq('status', 'Pendente')
+                .select();
 
-            // Altera apenas telefones da aba ativa
-            clientes.forEach(c => {
-                if (c.abaId === abaAtivaId && telefonesLista.includes(c.telefone)) {
-                    if (c.status === 'Pendente') {
-                        c.status = 'Acionado';
-                        alteradosCount++;
-                    }
-                }
-            });
-
-            if (alteradosCount > 0) {
-                alert(`${alteradosCount} cliente(s) da aba atual atualizados para "Acionado"!`);
+            if (!error && data) {
+                alert(`${data.length} cliente(s) da aba atual atualizados para "Acionado"!`);
                 fecharModalLote();
-                salvarNoBanco();
+                carregarDados();
             } else {
                 alert("Nenhum cliente pendente foi encontrado nesta aba com os telefones informados.");
             }
         }
 
-        function acionarWhatsApp(id) {
+        async function acionarWhatsApp(id) {
             let cliente = clientes.find(c => c.id === id);
             if (!cliente) return;
 
@@ -818,7 +829,8 @@
 
             if (cliente.status === 'Pendente') {
                 cliente.status = 'Acionado';
-                salvarNoBanco();
+                await supabase.from('clientes').update({ status: 'Acionado' }).eq('id', id);
+                renderizar();
             }
 
             window.open(`https://web.whatsapp.com/send?phone=${cliente.telefone}&text=${mensagemCodificada}`, '_blank');
@@ -883,22 +895,26 @@
             a.click();
         }
 
-        function removerCliente(id) {
+        async function removerCliente(id) {
             if(confirm("Deseja realmente excluir este cliente?")) { 
-                clientes = clientes.filter(c => c.id !== id); 
-                salvarNoBanco(); 
+                const { error } = await supabase.from('clientes').delete().eq('id', id);
+                if(!error) carregarDados();
             }
         }
 
-        function excluirTodos() {
+        async function excluirTodos() {
             let clientesDaAba = clientes.filter(c => c.abaId === abaAtivaId);
             if (clientesDaAba.length === 0) { alert("A aba atual já está vazia."); return; }
 
             if (confirm("ATENÇÃO: Deseja realmente excluir TODOS os clientes APENAS desta aba?")) { 
-                clientes = clientes.filter(c => c.abaId !== abaAtivaId); 
-                salvarNoBanco(); 
+                const { error } = await supabase.from('clientes').delete().eq('aba_id', abaAtivaId);
+                if(!error) carregarDados();
             }
         }
+
+        // Inicializa dados e assina atualizações em tempo real
+        carregarDados();
+        assinarRealtime();
     </script>
 </body>
 </html>
