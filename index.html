@@ -160,6 +160,17 @@
                     </div>
                 </div>
 
+                <!-- Resumo de Valor PAGO por Faixa de Atraso -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">💰 Valor Recuperado (Pago) por Faixa de Atraso</h3>
+                        <span class="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold px-2 py-0.5 rounded-full">Aba Ativa</span>
+                    </div>
+                    <div id="grid-faixas-pago" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                        <!-- Gerado Dinamicamente via JS -->
+                    </div>
+                </div>
+
                 <!-- Progresso de Conversão da Carteira -->
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 space-y-3">
                     <div class="flex justify-between items-center">
@@ -311,7 +322,7 @@
     </div>
 
     <script>
-        // CONFIGURAÇÕES DO SUPABASE
+        // CONFIGURAÇÕES DO SUPABASE FORNECIDAS
         const SUPABASE_URL = "https://kgidkxaqvgcqiqwqxvut.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtnaWRreGFxdmdjcWlxd3F4dnV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0ODc0MzAsImV4cCI6MjA5ODA2MzQzMH0.DLQoO8_q_QeW-a084ZDCFRc0OIeuEDaYpkUg2tSCB0E";
 
@@ -376,157 +387,190 @@
                 }));
 
                 // 3. Buscar Configurações
-                const { data: dataConfig } = await supabase.from('configuracoes').select('*').eq('id', 1).single();
-                if (dataConfig && dataConfig.template_mensagem) {
-                    templateMsg = dataConfig.template_mensagem;
+                const { data: dataConfig } = await supabase.from('configuracoes').select('*').eq('chave', 'templateMsg').single();
+                if (dataConfig) {
+                    templateMsg = dataConfig.valor;
                     document.getElementById('template-mensagem').value = templateMsg;
                 }
 
                 atualizarStatusConexao(true);
+                renderizarAbas();
                 renderizar();
+                assinarRealtime();
+                
             } catch (error) {
                 console.error("Erro ao carregar dados do Supabase:", error);
-                atualizarStatusConexao(false, "Erro no Banco");
+                atualizarStatusConexao(false, "Erro de Conexão");
             }
         }
 
         function assinarRealtime() {
-            supabase
-                .channel('mudancas-db')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'abas' }, () => carregarDados())
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' }, () => carregarDados())
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'configuracoes' }, () => carregarDados())
+            supabase.channel('custom-all-channel')
+                .on('postgres_changes', { event: '*', schema: 'public' }, payload => {
+                    // Evita "flicker" recarregando em lote
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        carregarDadosSilencioso();
+                    }, 800);
+                })
                 .subscribe();
         }
 
-        function atualizarStatusConexao(conectado, mensagemCustom = "") {
-            const dot = document.getElementById('status-conexao-dot');
-            const texto = document.getElementById('status-conexao-texto');
-            
-            if (dot && texto) {
-                if (conectado) {
-                    dot.className = "w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shrink-0";
-                    texto.innerText = mensagemCustom || "Supabase Conectado";
-                } else {
-                    dot.className = "w-2.5 h-2.5 bg-rose-500 rounded-full shrink-0";
-                    texto.innerText = mensagemCustom || "Sincronizando...";
-                }
+        async function carregarDadosSilencioso() {
+            const { data: dataAbas } = await supabase.from('abas').select('*').order('created_at', { ascending: true });
+            if (dataAbas) {
+                abas = dataAbas;
+                if (!abas.some(a => a.id === abaAtivaId) && abas.length > 0) abaAtivaId = abas[0].id;
+                renderizarAbas();
+            }
+
+            const { data: dataClientes } = await supabase.from('clientes').select('*');
+            if (dataClientes) {
+                clientes = dataClientes.map(c => ({
+                    id: Number(c.id),
+                    abaId: c.aba_id,
+                    nome: c.nome,
+                    telefone: c.telefone,
+                    valor: parseFloat(c.valor),
+                    faixaAtraso: normalizarFaixa(c.faixa_atraso),
+                    status: c.status,
+                    motivo: c.motivo || ''
+                }));
+                renderizar();
             }
         }
 
-        function normalizarFaixa(faixa) {
-            if (!faixa) return 'C | 61 a 90';
-            let f = faixa.trim();
-            if (TODAS_FAIXAS.includes(f)) return f;
-            if (f.includes('61') && f.includes('90')) return 'C | 61 a 90';
-            if (f.includes('91') && f.includes('120')) return 'D | 91 a 120';
-            if (f.includes('121') && f.includes('150')) return 'E | 121 a 150';
-            if (f.includes('151') && f.includes('180')) return 'F | 151 a 180';
-            if (f.includes('361') && f.includes('720')) return 'H | 361 a 720';
-            if (f.includes('1') && f.includes('30')) return 'A | 1 a 30';
-            if (f.includes('31') && f.includes('60')) return 'B | 31 a 60';
-            if (f.includes('181') && f.includes('360')) return 'G | 181 a 360';
-            if (f.toLowerCase().includes('prev')) return 'Preventivo';
-            return 'C | 61 a 90';
+        function atualizarStatusConexao(online, text) {
+            const dot = document.getElementById('status-conexao-dot');
+            const txt = document.getElementById('status-conexao-texto');
+            if (online) {
+                dot.className = "w-2.5 h-2.5 bg-emerald-500 rounded-full shrink-0";
+                txt.textContent = text || "Online - Supabase Sincronizado";
+            } else {
+                dot.className = "w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse shrink-0";
+                txt.textContent = text || "Sincronizando...";
+            }
         }
 
-        // Operações de Abas com Supabase
-        async function criarNovaAba() {
-            let nomeAba = prompt("Informe o nome para a nova aba (Ex: Preventivo dia 12/08):");
-            if (!nomeAba || !nomeAba.trim()) return;
-
-            let idAba = 'aba_' + Date.now();
-            const { error } = await supabase.from('abas').insert([{ id: idAba, nome: nomeAba.trim() }]);
+        function normalizarFaixa(f) {
+            if (!f) return 'C | 61 a 90';
+            let fn = String(f).trim();
+            if (fn === 'C | 61 a 90') return fn;
             
-            if (!error) {
-                abaAtivaId = idAba;
-                carregarDados();
-            } else {
-                alert("Erro ao criar nova aba.");
+            if (fn.includes('61 a 90')) return 'C | 61 a 90';
+            if (fn.includes('91 a 120')) return 'D | 91 a 120';
+            if (fn.includes('121 a 150')) return 'E | 121 a 150';
+            if (fn.includes('151 a 180')) return 'F | 151 a 180';
+            if (fn.includes('181 a 360')) return 'G | 181 a 360';
+            if (fn.includes('361 a 720')) return 'H | 361 a 720';
+            if (fn.includes('720')) return '+720 dias';
+            if (fn.toLowerCase().includes('prev')) return 'Preventivo';
+            if (fn.includes('1 a 30')) return 'A | 1 a 30';
+            if (fn.includes('31 a 60')) return 'B | 31 a 60';
+            
+            return TODAS_FAIXAS.includes(fn) ? fn : 'C | 61 a 90';
+        }
+
+        // ================= GESTÃO DE ABAS =================
+        async function criarNovaAba() {
+            let nomeAba = prompt("Nome da nova aba (ex: Dia 15/08, Banco X):");
+            if (nomeAba && nomeAba.trim() !== '') {
+                const newId = 'aba_' + Date.now();
+                const novaAba = { id: newId, nome: nomeAba.trim() };
+                
+                await supabase.from('abas').insert([novaAba]);
+                abaAtivaId = newId;
+                await carregarDadosSilencioso();
             }
         }
 
         function selecionarAba(id) {
             abaAtivaId = id;
+            statusAtivo = 'Todos';
+            faixaAtiva = 'Todas';
+            renderizarAbas();
             renderizar();
         }
 
         async function renomearAba(id) {
-            let aba = abas.find(a => a.id === id);
+            const aba = abas.find(a => a.id === id);
             if (!aba) return;
-
-            let novoNome = prompt("Renomear aba:", aba.nome);
-            if (novoNome && novoNome.trim()) {
-                const { error } = await supabase.from('abas').update({ nome: novoNome.trim() }).eq('id', id);
-                if (!error) carregarDados();
+            let novoNome = prompt("Renomear aba para:", aba.nome);
+            if (novoNome && novoNome.trim() !== '' && novoNome !== aba.nome) {
+                await supabase.from('abas').update({ nome: novoNome.trim() }).eq('id', id);
+                await carregarDadosSilencioso();
             }
         }
 
-        async function excluirAba(id) {
-            if (abas.length <= 1) {
-                alert("Você precisa ter pelo menos uma aba ativa.");
+        async function excluirAba(id, event) {
+            event.stopPropagation();
+            if(abas.length === 1) {
+                alert("Você não pode excluir a última aba.");
                 return;
             }
-
-            let aba = abas.find(a => a.id === id);
-            let totalClientesAba = clientes.filter(c => c.abaId === id).length;
-
-            if (confirm(`Tem certeza que deseja excluir a aba "${aba.nome}" e os seus ${totalClientesAba} cliente(s)?`)) {
-                const { error } = await supabase.from('abas').delete().eq('id', id);
-                if (!error) {
-                    if (abaAtivaId === id) {
-                        abaAtivaId = abas.filter(a => a.id !== id)[0].id;
-                    }
-                    carregarDados();
+            if(confirm(`Tem certeza que deseja excluir esta aba e TODOS os clientes nela?`)) {
+                // Ao deletar a aba (se o banco estiver configurado com CASCADE ON DELETE), os clientes nela irão junto.
+                // Mas para garantir, vamos apagar os clientes via código:
+                await supabase.from('clientes').delete().eq('aba_id', id);
+                await supabase.from('abas').delete().eq('id', id);
+                
+                if(abaAtivaId === id) {
+                    const restante = abas.filter(a => a.id !== id);
+                    abaAtivaId = restante[0].id;
                 }
+                await carregarDadosSilencioso();
             }
         }
 
         function renderizarAbas() {
             const container = document.getElementById('container-abas');
             container.innerHTML = '';
-
+            
             abas.forEach(aba => {
-                let isAtiva = aba.id === abaAtivaId;
-                let totalClientes = clientes.filter(c => c.abaId === aba.id).length;
-
-                let classesBtn = isAtiva 
-                    ? 'bg-emerald-600 text-white font-bold shadow-sm' 
-                    : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-medium';
-
-                container.innerHTML += `
-                    <div class="flex items-center gap-1 rounded-xl p-1 transition ${classesBtn} shrink-0">
-                        <button onclick="selecionarAba('${aba.id}')" class="px-2.5 py-1 text-xs flex items-center gap-1.5 outline-none">
-                            <span>${aba.nome}</span>
-                            <span class="${isAtiva ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-600'} text-[10px] px-1.5 py-0.2 rounded-full font-mono">${totalClientes}</span>
-                        </button>
-                        <button onclick="renomearAba('${aba.id}')" title="Renomear Aba" class="px-1 text-[11px] opacity-70 hover:opacity-100">✏️</button>
-                        ${abas.length > 1 ? `<button onclick="excluirAba('${aba.id}')" title="Excluir Aba" class="px-1 text-[11px] opacity-70 hover:opacity-100 text-rose-300 hover:text-rose-500">✕</button>` : ''}
-                    </div>
+                const isAtiva = aba.id === abaAtivaId;
+                const clientesNessaAba = clientes.filter(c => c.abaId === aba.id).length;
+                
+                let btn = document.createElement('div');
+                btn.className = `group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer border transition ${isAtiva ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`;
+                btn.onclick = () => selecionarAba(aba.id);
+                
+                btn.innerHTML = `
+                    <span ondblclick="renomearAba('${aba.id}')">${aba.nome}</span>
+                    <span class="${isAtiva ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'} px-1.5 py-0.5 rounded-full text-[10px]">${clientesNessaAba}</span>
+                    ${abas.length > 1 ? `<button onclick="excluirAba('${aba.id}', event)" class="ml-1 opacity-0 group-hover:opacity-100 hover:text-rose-600 transition" title="Excluir Aba">✕</button>` : ''}
                 `;
+                container.appendChild(btn);
             });
         }
 
+        // ================= CONFIGURAÇÕES E TEMPLATE =================
         async function salvarTemplate() {
             templateMsg = document.getElementById('template-mensagem').value;
-            const { error } = await supabase.from('configuracoes').upsert({ id: 1, template_mensagem: templateMsg });
-            if (!error) {
-                alert("Template de mensagem atualizado com sucesso!");
-            }
+            
+            const { error } = await supabase.from('configuracoes').upsert({ chave: 'templateMsg', valor: templateMsg });
+            if(error) console.error(error);
+
+            alert("Template salvo com sucesso no banco de dados!");
         }
 
-        function ordenarClientes() {
-            clientes.sort((a, b) => b.valor - a.valor);
+        // ================= FUNÇÕES DE FILTRO E ORDENAÇÃO =================
+        function ordenarClientes(lista) {
+            const ordem = { 'Pendente': 1, 'Acionado': 2, 'Confirmado': 3, 'Pago': 4, 'Não vão pagar': 5 };
+            return lista.sort((a, b) => {
+                let sA = ordem[a.status] || 99;
+                let sB = ordem[b.status] || 99;
+                if (sA !== sB) return sA - sB;
+                return b.valor - a.valor;
+            });
         }
 
         function mudarFiltroStatus(status) {
             statusAtivo = status;
             ['Todos', 'Pendente', 'Acionado', 'Confirmado', 'Pago', 'Não vão pagar'].forEach(s => {
-                let btn = document.getElementById(`btn-status-${s}`);
-                if (btn) {
-                    btn.className = s === status 
-                        ? "px-3 py-1.5 text-xs font-semibold rounded-lg transition bg-slate-800 text-white whitespace-nowrap shadow-sm" 
-                        : "px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap";
+                let el = document.getElementById(`btn-status-${s}`);
+                if (el) {
+                    if (s === status) el.className = "px-3 py-1.5 text-xs font-medium rounded-lg transition bg-slate-800 text-white whitespace-nowrap";
+                    else el.className = "px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap";
                 }
             });
             renderizar();
@@ -538,126 +582,170 @@
         }
 
         function getEstiloFaixa(faixa) {
-            switch(faixa) {
-                case 'Preventivo': return 'bg-emerald-50/70 border-emerald-200 text-emerald-800';
-                case 'A | 1 a 30': return 'bg-sky-50/70 border-sky-200 text-sky-800';
-                case 'B | 31 a 60': return 'bg-blue-50/70 border-blue-200 text-blue-800';
-                case 'C | 61 a 90': return 'bg-amber-50/70 border-amber-200 text-amber-800 font-semibold';
-                case 'D | 91 a 120': return 'bg-orange-50/70 border-orange-200 text-orange-800 font-semibold';
-                case 'E | 121 a 150': return 'bg-rose-50/70 border-rose-200 text-rose-800 font-semibold';
-                case 'F | 151 a 180': return 'bg-red-50/70 border-red-200 text-red-800 font-bold';
-                case 'G | 181 a 360': return 'bg-purple-50/70 border-purple-200 text-purple-800 font-bold';
-                case 'H | 361 a 720': return 'bg-indigo-50/70 border-indigo-200 text-indigo-900 font-bold';
-                case '+720 dias': return 'bg-slate-100 border-slate-300 text-slate-900 font-bold';
-                default: return 'bg-slate-50 border-slate-200 text-slate-700';
-            }
+            const estilos = {
+                'Preventivo': 'bg-teal-50 border-teal-200 text-teal-800',
+                'A | 1 a 30': 'bg-emerald-50 border-emerald-200 text-emerald-800',
+                'B | 31 a 60': 'bg-green-50 border-green-200 text-green-800',
+                'C | 61 a 90': 'bg-lime-50 border-lime-200 text-lime-800',
+                'D | 91 a 120': 'bg-yellow-50 border-yellow-200 text-yellow-800',
+                'E | 121 a 150': 'bg-amber-50 border-amber-200 text-amber-800',
+                'F | 151 a 180': 'bg-orange-50 border-orange-200 text-orange-800',
+                'G | 181 a 360': 'bg-rose-50 border-rose-200 text-rose-800',
+                'H | 361 a 720': 'bg-red-50 border-red-200 text-red-800',
+                '+720 dias': 'bg-slate-100 border-slate-300 text-slate-800'
+            };
+            return estilos[faixa] || 'bg-slate-50 border-slate-200 text-slate-800';
         }
 
+        // ================= FUNÇÃO PRINCIPAL DE RENDERIZAÇÃO =================
         function renderizar() {
-            renderizarAbas();
-            ordenarClientes();
-
-            let clientesDaAba = clientes.filter(c => c.abaId === abaAtivaId);
-
-            let acionados = clientesDaAba.filter(c => c.status === 'Acionado' || c.status === 'Confirmado' || c.status === 'Pago').length;
-            let pagantes = clientesDaAba.filter(c => c.status === 'Pago').length;
+            // Filtrar apenas clientes da ABA ATUAL
+            const clientesDaAba = clientes.filter(c => c.abaId === abaAtivaId);
+            const tbody = document.getElementById('tabela-clientes');
+            const termoBusca = document.getElementById('filtro-busca').value.toLowerCase();
             
-            let valorPago = clientesDaAba.filter(c => c.status === 'Pago').reduce((acc, curr) => acc + curr.valor, 0);
-            let valorConfirmado = clientesDaAba.filter(c => c.status === 'Confirmado').reduce((acc, curr) => acc + curr.valor, 0);
-            let valorAberto = clientesDaAba.filter(c => c.status === 'Pendente' || c.status === 'Acionado').reduce((acc, curr) => acc + curr.valor, 0);
-            let valorRecusado = clientesDaAba.filter(c => c.status === 'Não vão pagar').reduce((acc, curr) => acc + curr.valor, 0);
-            let valorGeral = valorPago + valorConfirmado + valorAberto + valorRecusado;
+            // 1. Filtragem para a Tabela
+            let filtrados = clientesDaAba.filter(c => c.nome.toLowerCase().includes(termoBusca) || c.telefone.includes(termoBusca));
+            if (statusAtivo !== 'Todos') filtrados = filtrados.filter(c => c.status === statusAtivo);
+            if (faixaAtiva !== 'Todas') filtrados = filtrados.filter(c => c.faixaAtraso === faixaAtiva);
+            
+            filtrados = ordenarClientes(filtrados);
 
-            document.getElementById('card-acionados').innerText = acionados;
-            document.getElementById('card-pagantes').innerText = pagantes;
+            // 2. Cálculo de Métricas Gerais da Aba
+            const valorTotal = clientesDaAba.reduce((acc, curr) => acc + curr.valor, 0);
+            const valorPago = clientesDaAba.filter(c => c.status === 'Pago').reduce((acc, curr) => acc + curr.valor, 0);
+            const valorConfirmado = clientesDaAba.filter(c => c.status === 'Confirmado').reduce((acc, curr) => acc + curr.valor, 0);
+            const valorAberto = clientesDaAba.filter(c => ['Pendente', 'Acionado'].includes(c.status)).reduce((acc, curr) => acc + curr.valor, 0);
+            const valorRecusado = clientesDaAba.filter(c => c.status === 'Não vão pagar').reduce((acc, curr) => acc + curr.valor, 0);
+            
             document.getElementById('card-valorpago').innerText = valorPago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            document.getElementById('card-valortotal').innerText = (valorAberto + valorConfirmado).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            document.getElementById('card-valortotal').innerText = valorAberto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            
+            let numAcionados = clientesDaAba.filter(c => c.status !== 'Pendente').length;
+            document.getElementById('card-acionados').innerText = numAcionados + " / " + clientesDaAba.length;
+            document.getElementById('card-pagantes').innerText = clientesDaAba.filter(c => c.status === 'Pago').length;
 
-            let pctPago = valorGeral > 0 ? ((valorPago / valorGeral) * 100).toFixed(1) : 0;
-            let pctConfirmado = valorGeral > 0 ? ((valorConfirmado / valorGeral) * 100).toFixed(1) : 0;
-            let pctAberto = valorGeral > 0 ? ((valorAberto / valorGeral) * 100).toFixed(1) : 0;
-            let pctRecusado = valorGeral > 0 ? ((valorRecusado / valorGeral) * 100).toFixed(1) : 0;
+            // 3. Barra de Progresso
+            const pctPago = valorTotal > 0 ? (valorPago / valorTotal) * 100 : 0;
+            const pctConf = valorTotal > 0 ? (valorConfirmado / valorTotal) * 100 : 0;
+            const pctAberto = valorTotal > 0 ? (valorAberto / valorTotal) * 100 : 100;
+            const pctRecusado = valorTotal > 0 ? (valorRecusado / valorTotal) * 100 : 0;
 
             document.getElementById('barra-pagos').style.width = `${pctPago}%`;
-            document.getElementById('barra-confirmados').style.width = `${pctConfirmado}%`;
+            document.getElementById('barra-confirmados').style.width = `${pctConf}%`;
             document.getElementById('barra-abertos').style.width = `${pctAberto}%`;
             document.getElementById('barra-recusados').style.width = `${pctRecusado}%`;
-            document.getElementById('texto-porcentagem').innerText = `${pctPago}% Recuperado`;
+
+            document.getElementById('texto-porcentagem').innerText = `${pctPago.toFixed(1)}% Pago (R$)`;
 
             document.getElementById('legenda-val-pago').innerText = valorPago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            document.getElementById('legenda-pct-pago').innerText = `${pctPago}%`;
+            document.getElementById('legenda-pct-pago').innerText = `${pctPago.toFixed(1)}%`;
+            
             document.getElementById('legenda-val-confirmado').innerText = valorConfirmado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            document.getElementById('legenda-pct-confirmado').innerText = `${pctConfirmado}%`;
+            document.getElementById('legenda-pct-confirmado').innerText = `${pctConf.toFixed(1)}%`;
+            
             document.getElementById('legenda-val-aberto').innerText = valorAberto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            document.getElementById('legenda-pct-aberto').innerText = `${pctAberto}%`;
+            document.getElementById('legenda-pct-aberto').innerText = `${pctAberto.toFixed(1)}%`;
+            
             document.getElementById('legenda-val-recusado').innerText = valorRecusado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            document.getElementById('legenda-pct-recusado').innerText = `${pctRecusado}%`;
+            document.getElementById('legenda-pct-recusado').innerText = `${pctRecusado.toFixed(1)}%`;
 
+            // 4. Renderização da Distribuição do Saldo em Aberto por Faixa
             const containerFaixas = document.getElementById('grid-faixas-resumo');
-            containerFaixas.innerHTML = '';
+            if(containerFaixas) {
+                containerFaixas.innerHTML = '';
+                
+                TODAS_FAIXAS.forEach(f => {
+                    let clientesFaixa = clientesDaAba.filter(c => (c.faixaAtraso || 'C | 61 a 90') === f);
+                    let clientesEmAbertoFaixa = clientesFaixa.filter(c => ['Pendente', 'Acionado', 'Confirmado'].includes(c.status));
+                    
+                    let valorFaixa = clientesEmAbertoFaixa.reduce((acc, curr) => acc + curr.valor, 0);
+                    let qtdFaixa = clientesEmAbertoFaixa.length;
 
-            TODAS_FAIXAS.forEach(f => {
-                let totalFaixa = clientesDaAba.filter(c => (c.faixaAtraso || 'C | 61 a 90') === f && c.status !== 'Pago').reduce((acc, curr) => acc + curr.valor, 0);
-                let qtdFaixa = clientesDaAba.filter(c => (c.faixaAtraso || 'C | 61 a 90') === f && c.status !== 'Pago').length;
-
-                if (qtdFaixa > 0 || ['C | 61 a 90', 'D | 91 a 120', 'E | 121 a 150', 'F | 151 a 180', 'H | 361 a 720'].includes(f)) {
-                    let colorClasses = getEstiloFaixa(f);
-                    containerFaixas.innerHTML += `
-                        <div class="p-3 rounded-xl border ${colorClasses} flex flex-col justify-between shadow-xs">
-                            <span class="text-[10px] uppercase tracking-wider font-bold">${f}</span>
-                            <div class="mt-1">
-                                <p class="text-xs font-bold">${totalFaixa.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                                <span class="text-[10px] opacity-75">${qtdFaixa} cliente(s)</span>
+                    if (clientesFaixa.length > 0 || ['C | 61 a 90', 'D | 91 a 120', 'E | 121 a 150', 'F | 151 a 180', 'H | 361 a 720'].includes(f)) {
+                        let totalAberto = (valorAberto + valorConfirmado);
+                        let pctFaixa = totalAberto > 0 ? ((valorFaixa / totalAberto) * 100).toFixed(1) : 0;
+                        let colorClasses = getEstiloFaixa(f);
+                        
+                        containerFaixas.innerHTML += `
+                            <div class="p-3 rounded-xl border ${colorClasses} flex flex-col justify-between shadow-xs">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-[10px] uppercase tracking-wider font-bold">${f}</span>
+                                    <span class="text-[9px] bg-white text-slate-600 font-bold px-1.5 py-0.5 rounded border border-slate-200/60">${pctFaixa}%</span>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-extrabold text-slate-800">${valorFaixa.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                                    <span class="text-[10px] opacity-80 font-medium">${qtdFaixa} clt(s) abertos</span>
+                                </div>
                             </div>
-                        </div>
-                    `;
-                }
-            });
+                        `;
+                    }
+                });
+            }
 
-            const termoBusca = document.getElementById('filtro-busca').value.toLowerCase();
-            let clientesFiltrados = clientesDaAba.filter(c => {
-                let correspondeBusca = c.nome.toLowerCase().includes(termoBusca) || c.telefone.includes(termoBusca);
-                let correspondeStatus = (statusAtivo === 'Todos') || (c.status === statusAtivo);
-                let correspondeFaixa = (faixaAtiva === 'Todas') || ((c.faixaAtraso || 'C | 61 a 90') === faixaAtiva);
-                return correspondeBusca && correspondeStatus && correspondeFaixa;
-            });
+            // 5. Renderização da Distribuição do Valor PAGO por Faixa (INJETADO AQUI)
+            const containerFaixasPago = document.getElementById('grid-faixas-pago');
+            if (containerFaixasPago) {
+                containerFaixasPago.innerHTML = '';
 
-            const tbody = document.getElementById('tabela-clientes');
+                TODAS_FAIXAS.forEach(f => {
+                    let clientesFaixa = clientesDaAba.filter(c => (c.faixaAtraso || 'C | 61 a 90') === f);
+                    let clientesPagosFaixa = clientesFaixa.filter(c => c.status === 'Pago');
+                    
+                    let valorPagoFaixa = clientesPagosFaixa.reduce((acc, curr) => acc + curr.valor, 0);
+                    let valorTotalFaixa = clientesFaixa.reduce((acc, curr) => acc + curr.valor, 0);
+                    let qtdPagos = clientesPagosFaixa.length;
+                    let qtdTotal = clientesFaixa.length;
+
+                    if (qtdTotal > 0 || ['C | 61 a 90', 'D | 91 a 120', 'E | 121 a 150', 'F | 151 a 180', 'H | 361 a 720'].includes(f)) {
+                        let pctFaixa = valorTotalFaixa > 0 ? ((valorPagoFaixa / valorTotalFaixa) * 100).toFixed(1) : 0;
+                        let colorClasses = getEstiloFaixa(f);
+
+                        containerFaixasPago.innerHTML += `
+                            <div class="p-3 rounded-xl border ${colorClasses} flex flex-col justify-between shadow-xs">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-[10px] uppercase tracking-wider font-bold">${f}</span>
+                                    <span class="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded-full border border-emerald-200">${pctFaixa}%</span>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-extrabold text-emerald-700">${valorPagoFaixa.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                                    <span class="text-[10px] opacity-80 font-medium">${qtdPagos} de ${qtdTotal} pago(s)</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+            }
+
+            // 6. Renderização da Tabela
             tbody.innerHTML = '';
             
-            if(clientesDaAba.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-400 text-xs">Nenhum cliente nesta aba. Clique em "+ Novo Cliente" ou "📂 Importar Lote".</td></tr>`;
+            if (filtrados.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500 font-medium bg-slate-50/50">Nenhum cliente encontrado com os filtros atuais nesta aba.</td></tr>`;
                 return;
             }
 
-            if(clientesFiltrados.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-400 text-xs">Nenhum cliente encontrado para os filtros selecionados nesta aba.</td></tr>`;
-                return;
-            }
+            filtrados.forEach(c => {
+                let badgeClass = 'bg-slate-100 text-slate-600 border-slate-200';
+                if(c.status === 'Acionado') badgeClass = 'bg-blue-50 text-blue-700 border-blue-200';
+                else if(c.status === 'Confirmado') badgeClass = 'bg-teal-50 text-teal-700 border-teal-200 font-bold';
+                else if(c.status === 'Pago') badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold';
+                else if(c.status === 'Não vão pagar') badgeClass = 'bg-rose-50 text-rose-700 border-rose-200';
 
-            clientesFiltrados.forEach(c => {
-                let badgeStatus = 'bg-slate-100 text-slate-600 border-slate-200';
-                if (c.status === 'Pago') badgeStatus = 'bg-emerald-100 text-emerald-800 border-emerald-200 font-semibold';
-                else if (c.status === 'Confirmado') badgeStatus = 'bg-teal-100 text-teal-800 border-teal-200 font-semibold';
-                else if (c.status === 'Acionado') badgeStatus = 'bg-amber-100 text-amber-800 border-amber-200';
-                else if (c.status === 'Não vão pagar') badgeStatus = 'bg-rose-100 text-rose-800 border-rose-200';
-
-                let faixaAtual = c.faixaAtraso || 'C | 61 a 90';
-                let badgeFaixa = getEstiloFaixa(faixaAtual);
-                let valorFormatado = c.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                
-                tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50/80 transition">
+                let row = `
+                    <tr class="hover:bg-slate-50/80 transition border-b border-slate-100 last:border-0">
                         <td class="p-4 font-semibold text-slate-800">${c.nome}</td>
-                        <td class="p-4 text-slate-600 font-mono text-[11px]">${c.telefone}</td>
-                        <td class="p-4 font-semibold text-slate-800">${valorFormatado}</td>
+                        <td class="p-4 font-mono text-slate-600">${c.telefone}</td>
+                        <td class="p-4 font-bold text-slate-800">${c.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                        
                         <td class="p-4">
-                            <select onchange="atualizarFaixaCliente(${c.id}, this.value)" class="text-xs font-medium px-2.5 py-1 rounded-lg border outline-none cursor-pointer ${badgeFaixa}">
-                                ${TODAS_FAIXAS.map(f => `<option value="${f}" ${faixaAtual === f ? 'selected' : ''}>${f}</option>`).join('')}
+                            <select onchange="atualizarFaixaCliente(${c.id}, this.value)" class="text-xs font-semibold px-2 py-1.5 rounded-lg border outline-none ${getEstiloFaixa(c.faixaAtraso)} bg-transparent">
+                                ${TODAS_FAIXAS.map(f => `<option value="${f}" ${c.faixaAtraso === f ? 'selected' : ''}>${f}</option>`).join('')}
                             </select>
                         </td>
+
                         <td class="p-4">
-                            <select onchange="atualizarStatusCliente(${c.id}, this.value)" class="text-xs font-semibold px-2.5 py-1 rounded-lg border outline-none cursor-pointer ${badgeStatus}">
+                            <select onchange="atualizarStatusCliente(${c.id}, this.value)" class="text-xs font-semibold px-2 py-1.5 rounded-lg border ${badgeClass} outline-none cursor-pointer">
                                 <option value="Pendente" ${c.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
                                 <option value="Acionado" ${c.status === 'Acionado' ? 'selected' : ''}>Acionado</option>
                                 <option value="Confirmado" ${c.status === 'Confirmado' ? 'selected' : ''}>✅ Confirmado</option>
@@ -665,256 +753,246 @@
                                 <option value="Não vão pagar" ${c.status === 'Não vão pagar' ? 'selected' : ''}>❌ Não vão pagar</option>
                             </select>
                         </td>
-                        <td class="p-4">
-                            <input type="text" value="${c.motivo || ''}" oninput="atualizarMotivoCliente(${c.id}, this.value)" placeholder="Observação..." class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 focus:bg-white focus:ring-1 focus:ring-emerald-500 outline-none">
+                        
+                        <td class="p-4 w-64">
+                            <input type="text" onchange="atualizarMotivoCliente(${c.id}, this.value)" value="${c.motivo}" placeholder="Adicione uma observação..." class="w-full text-xs p-2 bg-transparent border-b border-dashed border-slate-300 focus:border-emerald-500 outline-none transition placeholder-slate-400">
                         </td>
-                        <td class="p-4 text-center space-x-1 whitespace-nowrap">
-                            <button onclick="acionarWhatsApp(${c.id})" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg shadow-sm transition font-medium active:scale-95">Wpp</button>
-                            <button onclick="removerCliente(${c.id})" class="text-rose-500 hover:text-rose-700 text-xs px-2 py-1.5 transition">Excluir</button>
+                        
+                        <td class="p-4 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <button onclick="acionarWhatsApp(${c.id})" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1.5 rounded-lg font-semibold transition active:scale-95 shadow-sm text-xs">
+                                    WhatsApp
+                                </button>
+                                <button onclick="removerCliente(${c.id})" class="text-slate-400 hover:text-rose-600 transition active:scale-90" title="Excluir">
+                                    🗑️
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `;
+                tbody.innerHTML += row;
             });
         }
 
-        function abrirModal() { document.getElementById('modal').classList.remove('hidden'); }
-        function fecharModal() { document.getElementById('modal').classList.add('hidden'); }
-        function abrirModalLote() { document.getElementById('modal-lote').classList.remove('hidden'); }
-        function fecharModalLote() { document.getElementById('modal-lote').classList.add('hidden'); document.getElementById('texto-lote').value = ''; }
-
-        // Operações nos Clientes com Supabase
-        async function atualizarStatusCliente(id, novoStatus) {
-            let cliente = clientes.find(c => c.id === id);
-            if (cliente) { 
-                cliente.status = novoStatus; 
+        // ================= FUNÇÕES DE CRUD (SUPABASE) =================
+        async function atualizarStatusCliente(id, status) {
+            let cl = clientes.find(c => c.id === id);
+            if (cl) {
+                cl.status = status;
+                await supabase.from('clientes').update({ status: status }).eq('id', id);
                 renderizar();
-                await supabase.from('clientes').update({ status: novoStatus }).eq('id', id);
             }
         }
 
-        async function atualizarFaixaCliente(id, novaFaixa) {
-            let cliente = clientes.find(c => c.id === id);
-            if (cliente) { 
-                cliente.faixaAtraso = novaFaixa; 
+        async function atualizarFaixaCliente(id, faixa) {
+            let cl = clientes.find(c => c.id === id);
+            if (cl) {
+                cl.faixaAtraso = faixa;
+                await supabase.from('clientes').update({ faixa_atraso: faixa }).eq('id', id);
                 renderizar();
-                await supabase.from('clientes').update({ faixa_atraso: novaFaixa }).eq('id', id);
             }
         }
 
-        function atualizarMotivoCliente(id, novoMotivo) {
-            let cliente = clientes.find(c => c.id === id);
-            if (cliente) { 
-                cliente.motivo = novoMotivo; 
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(async () => {
-                    await supabase.from('clientes').update({ motivo: novoMotivo }).eq('id', id);
-                }, 800);
+        async function atualizarMotivoCliente(id, motivo) {
+            let cl = clientes.find(c => c.id === id);
+            if(cl) {
+                cl.motivo = motivo;
+                await supabase.from('clientes').update({ motivo: motivo }).eq('id', id);
             }
         }
 
         async function salvarCliente(e) {
             e.preventDefault();
-            const novoCliente = {
-                id: Date.now(),
-                aba_id: abaAtivaId,
-                nome: document.getElementById('nome').value.trim(),
-                telefone: document.getElementById('telefone').value.replace(/\D/g, ''),
-                valor: parseFloat(document.getElementById('valor').value),
-                faixa_atraso: document.getElementById('faixaAtraso').value,
-                status: 'Pendente',
-                motivo: ''
-            };
+            const nome = document.getElementById('nome').value.toUpperCase();
+            const telefone = document.getElementById('telefone').value.replace(/\D/g, '');
+            const valor = parseFloat(document.getElementById('valor').value);
+            const faixa = document.getElementById('faixaAtraso').value;
 
-            const { error } = await supabase.from('clientes').insert([novoCliente]);
-            if (!error) {
-                document.getElementById('form-cliente').reset();
+            if (nome && telefone && valor) {
+                const novoCliente = {
+                    aba_id: abaAtivaId,
+                    nome: nome,
+                    telefone: telefone,
+                    valor: valor,
+                    faixa_atraso: faixa,
+                    status: 'Pendente',
+                    motivo: ''
+                };
+
+                const { data, error } = await supabase.from('clientes').insert([novoCliente]).select();
+                if(error) {
+                    console.error("Erro ao salvar:", error);
+                    alert("Erro ao salvar cliente.");
+                } else if(data && data.length > 0) {
+                    clientes.push({
+                        id: Number(data[0].id),
+                        abaId: data[0].aba_id,
+                        nome: data[0].nome,
+                        telefone: data[0].telefone,
+                        valor: parseFloat(data[0].valor),
+                        faixaAtraso: normalizarFaixa(data[0].faixa_atraso),
+                        status: data[0].status,
+                        motivo: data[0].motivo
+                    });
+                }
+                
                 fecharModal();
-                carregarDados();
-            } else {
-                alert("Erro ao salvar cliente no banco.");
+                renderizar();
+                document.getElementById('form-cliente').reset();
             }
         }
 
         async function processarImportacaoLote() {
             const texto = document.getElementById('texto-lote').value.trim();
-            if(!texto) { alert("Cole os dados no campo indicado."); return; }
+            if(!texto) return;
 
             const linhas = texto.split('\n');
-            let novosClientes = [];
-
-            linhas.forEach((linha, index) => {
-                if (!linha.trim()) return;
-                let partes = linha.split(';').length >= 3 ? linha.split(';') : linha.split('\t');
-
+            let insercoes = [];
+            
+            linhas.forEach((linha) => {
+                let partes = linha.split(';');
                 if (partes.length >= 3) {
-                    let nome = partes[0].trim();
-                    let telefone = partes[1].trim().replace(/\D/g, '');
-                    let valorStr = partes[2].trim().replace(/R\$/gi, '').replace(/\./g, '').replace(',', '.').trim();
-                    let valor = parseFloat(valorStr);
-                    let faixaRaw = partes[3] ? partes[3].trim() : 'C | 61 a 90';
-                    let faixa = normalizarFaixa(faixaRaw);
-
-                    if (nome && telefone && !isNaN(valor)) {
-                        novosClientes.push({ 
-                            id: Date.now() + index, 
-                            aba_id: abaAtivaId, 
-                            nome: nome, 
-                            telefone: telefone, 
-                            valor: valor, 
-                            faixa_atraso: faixa, 
-                            status: 'Pendente', 
-                            motivo: '' 
+                    const nomeStr = partes[0].trim().toUpperCase();
+                    const valStr = partes[2].replace(',', '.').trim();
+                    const numVal = parseFloat(valStr);
+                    
+                    if(nomeStr && !isNaN(numVal)) {
+                        const faixaInput = partes[3] ? normalizarFaixa(partes[3]) : 'C | 61 a 90';
+                        insercoes.push({
+                            aba_id: abaAtivaId,
+                            nome: nomeStr,
+                            telefone: partes[1].replace(/\D/g, ''),
+                            valor: numVal,
+                            faixa_atraso: faixaInput,
+                            status: 'Pendente',
+                            motivo: ''
                         });
                     }
                 }
             });
 
-            if (novosClientes.length > 0) {
-                const { error } = await supabase.from('clientes').insert(novosClientes);
-                if (!error) {
-                    alert(`${novosClientes.length} cliente(s) importado(s) na aba atual!`);
-                    fecharModalLote();
-                    carregarDados();
-                } else {
-                    alert("Erro ao importar lote no banco.");
-                }
+            if (insercoes.length > 0) {
+                atualizarStatusConexao(false, "Importando...");
+                const { error } = await supabase.from('clientes').insert(insercoes);
+                if(error) console.error("Erro no lote:", error);
+                
+                await carregarDadosSilencioso();
+                fecharModalLote();
+                alert(`${insercoes.length} clientes importados com sucesso para a aba atual!`);
             } else {
-                alert("Erro ao identificar os dados. Formato esperado: Nome; Telefone; Valor; Faixa");
+                alert("Nenhum dado válido para importação. Use o formato: NOME;TELEFONE;VALOR;FAIXA");
             }
         }
 
         async function processarBaixaEmMassa() {
             const texto = document.getElementById('texto-lote').value.trim();
-            if(!texto) { alert("Cole a lista de telefones no campo indicado."); return; }
+            if(!texto) return;
 
-            const telefonesLista = texto.split('\n')
-                .map(linha => linha.trim().replace(/\D/g, ''))
-                .filter(tel => tel.length > 0);
+            const linhas = texto.split('\n');
+            let telefonesParaBaixa = linhas.map(l => l.trim().replace(/\D/g, '')).filter(t => t.length > 0);
+            
+            if (telefonesParaBaixa.length > 0) {
+                atualizarStatusConexao(false, "Baixando...");
+                // Filtramos os IDs dos clientes DA ABA ATUAL que estão na lista de telefones
+                const idsParaAtualizar = clientes
+                    .filter(c => c.abaId === abaAtivaId && telefonesParaBaixa.includes(c.telefone))
+                    .map(c => c.id);
 
-            if(telefonesLista.length === 0) {
-                alert("Nenhum telefone válido encontrado na lista.");
-                return;
-            }
-
-            const { data, error } = await supabase
-                .from('clientes')
-                .update({ status: 'Acionado' })
-                .in('telefone', telefonesLista)
-                .eq('aba_id', abaAtivaId)
-                .eq('status', 'Pendente')
-                .select();
-
-            if (!error && data) {
-                alert(`${data.length} cliente(s) da aba atual atualizados para "Acionado"!`);
-                fecharModalLote();
-                carregarDados();
-            } else {
-                alert("Nenhum cliente pendente foi encontrado nesta aba com os telefones informados.");
+                if(idsParaAtualizar.length > 0) {
+                    // Update em lote no Supabase usando 'in'
+                    const { error } = await supabase
+                        .from('clientes')
+                        .update({ status: 'Acionado' })
+                        .in('id', idsParaAtualizar);
+                        
+                    if(error) console.error("Erro na baixa em massa:", error);
+                    
+                    await carregarDadosSilencioso();
+                    alert(`Status de ${idsParaAtualizar.length} clientes atualizado para "Acionado" nesta aba!`);
+                    fecharModalLote();
+                } else {
+                    alert("Nenhum telefone encontrado na ABA ATUAL para baixar.");
+                }
             }
         }
 
         async function acionarWhatsApp(id) {
-            let cliente = clientes.find(c => c.id === id);
-            if (!cliente) return;
-
-            let valorFormatado = cliente.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            let faixaFormatada = cliente.faixaAtraso || 'C | 61 a 90';
-
-            let mensagemFinal = templateMsg
-                .replace(/{nome}/g, cliente.nome)
-                .replace(/{valor}/g, valorFormatado)
-                .replace(/{faixa}/g, faixaFormatada);
+            let c = clientes.find(c => c.id === id);
+            if(c) {
+                let v = c.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
                 
-            let mensagemCodificada = encodeURIComponent(mensagemFinal);
-
-            if (cliente.status === 'Pendente') {
-                cliente.status = 'Acionado';
-                await supabase.from('clientes').update({ status: 'Acionado' }).eq('id', id);
-                renderizar();
+                let msg = templateMsg
+                    .replace(/{nome}/g, c.nome)
+                    .replace(/{valor}/g, v)
+                    .replace(/{faixa}/g, c.faixaAtraso);
+                
+                msg = encodeURIComponent(msg);
+                
+                if (c.status === 'Pendente') {
+                    c.status = 'Acionado';
+                    await supabase.from('clientes').update({ status: 'Acionado' }).eq('id', id);
+                    renderizar();
+                }
+                
+                window.open(`https://wa.me/${c.telefone}?text=${msg}`, '_blank');
             }
-
-            window.open(`https://web.whatsapp.com/send?phone=${cliente.telefone}&text=${mensagemCodificada}`, '_blank');
-        }
-
-        function exportarExcel() {
-            let clientesDaAba = clientes.filter(c => c.abaId === abaAtivaId);
-            let abaAtual = abas.find(a => a.id === abaAtivaId);
-            let nomeAba = abaAtual ? abaAtual.nome : 'Aba_Atual';
-
-            if (clientesDaAba.length === 0) { alert("Não há dados na aba ativa para exportar."); return; }
-
-            let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:html="http://www.w3.org/TR/REC-html40">
- <Worksheet ss:Name="${nomeAba.replace(/[^a-zA-Z0-9 ]/g, '')}">
-  <Table ss:ExpandedColumnCount="6" ss:ExpandedRowCount="${clientesDaAba.length + 1}" x:FullColumns="1" x:FullRows="1">
-   <Row>
-    <Cell><Data ss:Type="String">Nome do Cliente</Data></Cell>
-    <Cell><Data ss:Type="String">Telefone</Data></Cell>
-    <Cell><Data ss:Type="String">Valor (R$)</Data></Cell>
-    <Cell><Data ss:Type="String">Faixa de Atraso</Data></Cell>
-    <Cell><Data ss:Type="String">Status Atual</Data></Cell>
-    <Cell><Data ss:Type="String">Motivo / Observação</Data></Cell>
-   </Row>`;
-
-            clientesDaAba.forEach(c => {
-                xml += `
-   <Row>
-    <Cell><Data ss:Type="String">${c.nome}</Data></Cell>
-    <Cell><Data ss:Type="String">${c.telefone}</Data></Cell>
-    <Cell><Data ss:Type="Number">${c.valor}</Data></Cell>
-    <Cell><Data ss:Type="String">${c.faixaAtraso || 'C | 61 a 90'}</Data></Cell>
-    <Cell><Data ss:Type="String">${c.status}</Data></Cell>
-    <Cell><Data ss:Type="String">${c.motivo || ''}</Data></Cell>
-   </Row>`;
-            });
-
-            xml += `
-  </Table>
-  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
-   <AutoFilter x:Range="R1C1:R${clientesDaAba.length + 1}C6"></AutoFilter>
-   <FreezePanes/>
-   <FrozenNoSplit/>
-   <SplitVertical>0</SplitVertical>
-   <SplitHorizontal>1</SplitHorizontal>
-   <TopRowBottomPane>1</TopRowBottomPane>
-   <ActivePane>2</ActivePane>
-  </WorksheetOptions>
- </Worksheet>
-</Workbook>`;
-
-            let blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
-            let url = URL.createObjectURL(blob);
-            let a = document.createElement('a');
-            a.href = url;
-            a.download = `relatorio_${nomeAba.toLowerCase().replace(/[^a-z0-9]/g, '_')}.xls`;
-            a.click();
         }
 
         async function removerCliente(id) {
-            if(confirm("Deseja realmente excluir este cliente?")) { 
-                const { error } = await supabase.from('clientes').delete().eq('id', id);
-                if(!error) carregarDados();
+            if (confirm("Tem certeza que deseja excluir este cliente?")) {
+                await supabase.from('clientes').delete().eq('id', id);
+                clientes = clientes.filter(c => c.id !== id);
+                renderizar();
             }
         }
 
         async function excluirTodos() {
-            let clientesDaAba = clientes.filter(c => c.abaId === abaAtivaId);
-            if (clientesDaAba.length === 0) { alert("A aba atual já está vazia."); return; }
-
-            if (confirm("ATENÇÃO: Deseja realmente excluir TODOS os clientes APENAS desta aba?")) { 
-                const { error } = await supabase.from('clientes').delete().eq('aba_id', abaAtivaId);
-                if(!error) carregarDados();
+            let countAba = clientes.filter(c => c.abaId === abaAtivaId).length;
+            if (countAba === 0) return alert("Esta aba já está limpa.");
+            if (confirm(`Tem certeza que deseja apagar TODOS os ${countAba} clientes DESTA ABA? Esta ação não pode ser desfeita.`)) {
+                atualizarStatusConexao(false, "Limpando Aba...");
+                await supabase.from('clientes').delete().eq('aba_id', abaAtivaId);
+                clientes = clientes.filter(c => c.abaId !== abaAtivaId);
+                atualizarStatusConexao(true);
+                renderizar();
             }
         }
 
-        // Inicializa dados e assina atualizações em tempo real
-        carregarDados();
-        assinarRealtime();
+        function exportarExcel() {
+            let csv = "Nome,Telefone,Valor,Faixa de Atraso,Status,Motivo\n";
+            // Exporta só da aba atual
+            let filtrados = clientes.filter(c => c.abaId === abaAtivaId);
+            filtrados.forEach(c => {
+                let v = c.valor.toFixed(2).replace('.', ',');
+                csv += `"${c.nome}","${c.telefone}","${v}","${c.faixaAtraso}","${c.status}","${c.motivo}"\n`;
+            });
+
+            let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            let link = document.createElement("a");
+            let url = URL.createObjectURL(blob);
+            let nomeAbaAtual = abas.find(a => a.id === abaAtivaId)?.nome || 'export';
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Clientes_${nomeAbaAtual.replace(/[\/\\?%*:|"<>]/g, '-')}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // ================= UTILS MODAIS =================
+        function abrirModal() { document.getElementById('modal').classList.remove('hidden'); }
+        function fecharModal() { document.getElementById('modal').classList.add('hidden'); }
+        
+        function abrirModalLote() { 
+            document.getElementById('texto-lote').value = '';
+            document.getElementById('modal-lote').classList.remove('hidden'); 
+        }
+        function fecharModalLote() { document.getElementById('modal-lote').classList.add('hidden'); }
+
+        // Start
+        window.onload = () => {
+            carregarDados();
+        };
+
     </script>
 </body>
 </html>
