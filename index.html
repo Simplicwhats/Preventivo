@@ -782,19 +782,7 @@
             }
         }
 
-        async function acionarWhatsApp(id) {
-            let c = clientes.find(c => c.id === id);
-            if(c) {
-                let v = c.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                let msg = encodeURIComponent(templateMsg.replace(/{nome}/g, c.nome).replace(/{valor}/g, v).replace(/{faixa}/g, c.faixaAtraso));
-                if (c.status === 'Pendente') {
-                    c.status = 'Acionado';
-                    await db.from('clientes').update({ status: 'Acionado' }).eq('id', id);
-                    renderizar();
-                }
-                window.open(`https://web.whatsapp.com/${c.telefone}?text=${msg}`, '_blank');
-            }
-        }
+       async function acionarWhatsApp(id) { const c = clientes.find(c => c.id === id); if (!c) return; // Formata o valor const v = c.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); // Monta a mensagem const mensagem = templateMsg .replace(/{nome}/g, c.nome) .replace(/{valor}/g, v) .replace(/{faixa}/g, c.faixaAtraso); // Limpa o telefone let telefone = String(c.telefone).replace(/\D/g, ''); // Adiciona o código do Brasil se ainda não tiver if (!telefone.startsWith('55')) { telefone = '55' + telefone; } // URL CORRETA do WhatsApp const urlWhatsApp = `https://web.whatsapp.com/send?phone=${telefone}&text=${encodeURIComponent(mensagem)}`; // Abre imediatamente para evitar bloqueio de popup window.open(urlWhatsApp, '_blank'); // Altera o status para Acionado if (c.status === 'Pendente') { c.status = 'Acionado'; await db .from('clientes') .update({ status: 'Acionado' }) .eq('id', id); renderizar(); } }
 
         async function removerCliente(id) {
             if (confirm("Deseja excluir este cliente?")) {
