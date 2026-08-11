@@ -792,7 +792,8 @@
                     await db.from('clientes').update({ status: 'Acionado' }).eq('id', id);
                     renderizar();
                 }
-                window.open(`https://wa.me/${c.telefone}?text=${msg}`, '_blank');
+                window.open(`https://web.whatsapp.com/send?phone=${cliente.telefone}&text=${mensagemCodificada}`, '_blank');
+
             }
         }
 
