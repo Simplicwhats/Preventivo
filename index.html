@@ -738,7 +738,12 @@
             });
 
             if (insercoes.length > 0) {
-                await db.from('clientes').insert(insercoes);
+                const { error: errInsercao } = await db.from('clientes').insert(insercoes).select('id');
+                if (errInsercao) {
+                    console.error("Erro ao inserir:", errInsercao);
+                    alert("Erro ao importar clientes: " + errInsercao.message);
+                    return;
+                }
                 await carregarDadosSilencioso();
                 fecharModalLote();
                 alert(`${insercoes.length} clientes importados com sucesso!`);
