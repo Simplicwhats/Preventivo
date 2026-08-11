@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRC - Preventivo de Pagamentos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- SDKs do Firebase (Versão Compatível para HTML único) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-slate-100 font-sans">
+
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar / Configuração da Mensagem -->
+        <div class="w-96 bg-slate-900 text-white flex flex-col justify-between p-6 shadow-xl">
+            <div class="space-y-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-emerald-400">CRC WhatsApp</h1>
+                    <p class="text-xs text-slate-400">Preventivo de Cobrança Sem API</p>
+                </div>
+
+                <!-- Campo para Personalizar a Mensagem -->
+                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-3">
+                    <h2 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Template da Mensagem</h2>
+                    <p class="text-xs text-slate-400">Use <code class="bg-slate-900 text-emerald-400 px-1 py-0.5 rounded">{nome}</code> ou <code class="bg-slate-900 text-emerald-400 px-1 py-0.5 rounded">{valor}</code>.</p>
+                    <textarea id="template-mensagem" rows="5" class="w-full bg-slate-900 text-slate-200 border border-slate-700 rounded-lg p-2.5 text-xs focus:ring-2 focus:ring-emerald-500 outline-none resize-none">Olá {nome}! Passando para lembrar sobre o seu pagamento preventivo no valor de {valor} que vence em breve. Evite encargos!</textarea>
+                    <button onclick="salvarTemplate()" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold py-2 rounded transition">
+                        Salvar Template
+                    </button>
+                </div>
+
+                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-800">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span id="status-conexao-dot" class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse"></span>
+                        <span id="status-conexao-texto" class="text-xs text-slate-300 font-medium">Conectando à nuvem...</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400">Sincronização em tempo real ativa no Firebase.</p>
+                </div>
+            </div>
+
+            <div class="text-[10px] text-slate-500 text-center border-t border-slate-800 pt-4">
+                CRC Interno • Versão Nuvem Firebase
+            </div>
+        </div>
+
+        <!-- Conteúdo Principal -->
+        <div class="flex-1 flex flex-col overflow-y-auto">
+            <header class="bg-white shadow-sm p-6 flex justify-between items-center border-b border-slate-200">
+                <h2 class="text-lg font-bold text-slate-800">Painel de Métricas e Disparos</h2>
+                <div class="flex gap-2">
+                    <button onclick="exportarExcel()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 text-xs font-semibold px-3 py-2.5 rounded-lg shadow-sm transition flex items-center gap-2">
+                        📊 Exportar Planilha com Filtros
+                    </button>
+                    <button onclick="excluirTodos()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-semibold px-3 py-2.5 rounded-lg shadow-sm transition flex items-center gap-2">
+                        🗑️ Excluir Todos
+                    </button>
+                    <button onclick="abrirModalLote()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2.5 rounded-lg shadow-sm transition flex items-center gap-2">
+                        📂 Importar Vários
+                    </button>
+                    <button onclick="abrirModal()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2.5 rounded-lg shadow-sm transition flex items-center gap-2">
+                        + Novo Cliente
+                    </button>
+                </div>
+            </header>
+
+            <main class="p-6">
+                <!-- Cards de Métricas -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Clientes Acionados</p>
+                        <p id="card-acionados" class="text-3xl font-bold text-slate-800 mt-2">0</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Clientes que Pagaram</p>
+                        <p id="card-pagantes" class="text-3xl font-bold text-emerald-600 mt-2">0</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Valor Recuperado</p>
+                        <p id="card-valorpago" class="text-3xl font-bold text-blue-600 mt-2">R$ 0,00</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Valor em Aberto</p>
+                        <p id="card-valortotal" class="text-3xl font-bold text-amber-600 mt-2">R$ 0,00</p>
+                    </div>
+                </div>
+
+                <!-- Gráfico de Distribuição Quádrupla -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Taxa de Conversão da Carteira (Distribuição de Valores)</h3>
+                        <span id="texto-porcentagem" class="text-xs font-bold text-emerald-600">0% Pago</span>
+                    </div>
+                    <div class="w-full bg-slate-100 h-4 rounded-full overflow-hidden flex shadow-inner">
+                        <div id="barra-pagos" class="bg-emerald-500 h-full transition-all duration-500" style="width: 0%"></div>
+                        <div id="barra-confirmados" class="bg-teal-500 h-full transition-all duration-500" style="width: 0%"></div>
+                        <div id="barra-abertos" class="bg-amber-400 h-full transition-all duration-500" style="width: 100%"></div>
+                        <div id="barra-recusados" class="bg-rose-500 h-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mt-3 text-[11px] text-slate-600 font-medium border-t border-slate-100 pt-3">
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-emerald-500 rounded-full inline-block"></span> Pagos: <strong id="legenda-val-pago">R$ 0,00</strong> (<span id="legenda-pct-pago">0%</span>)</span>
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-teal-500 rounded-full inline-block"></span> Confirmados: <strong id="legenda-val-confirmado">R$ 0,00</strong> (<span id="legenda-pct-confirmado">0%</span>)</span>
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-amber-400 rounded-full inline-block"></span> Em Aberto: <strong id="legenda-val-aberto">R$ 0,00</strong> (<span id="legenda-pct-aberto">0%</span>)</span>
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-rose-500 rounded-full inline-block"></span> Não Vão Pagar: <strong id="legenda-val-recusado">R$ 0,00</strong> (<span id="legenda-pct-recusado">0%</span>)</span>
+                    </div>
+                </div>
+
+                <!-- Barra de Pesquisa e Filtros de Status -->
+                <div class="mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+                    <div class="relative flex-1 w-full">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">🔍</span>
+                        <input type="text" id="filtro-busca" oninput="renderizar()" placeholder="Filtrar por nome ou telefone do cliente..." class="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-xs text-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div class="flex gap-1.5 bg-white p-1.5 border border-slate-200 rounded-xl shadow-sm w-full md:w-auto overflow-x-auto">
+                        <button onclick="mudarFiltroStatus('Todos')" id="btn-status-Todos" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition bg-blue-600 text-white whitespace-nowrap">Todos</button>
+                        <button onclick="mudarFiltroStatus('Pendente')" id="btn-status-Pendente" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">Pendentes</button>
+                        <button onclick="mudarFiltroStatus('Acionado')" id="btn-status-Acionado" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">Acionados</button>
+                        <button onclick="mudarFiltroStatus('Confirmado')" id="btn-status-Confirmado" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">✅ Confirmados</button>
+                        <button onclick="mudarFiltroStatus('Pago')" id="btn-status-Pago" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">Pagos</button>
+                        <button onclick="mudarFiltroStatus('Não vão pagar')" id="btn-status-Não vão pagar" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">❌ Não vão pagar</button>
+                    </div>
+                </div>
+
+                <!-- Tabela de Clientes -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200 text-[11px] text-slate-500 uppercase font-semibold tracking-wider">
+                                <th class="p-4">Cliente</th>
+                                <th class="p-4">Telefone</th>
+                                <th class="p-4">Valor</th>
+                                <th class="p-4">Status</th>
+                                <th class="p-4">Motivo / Observação da Recusa</th>
+                                <th class="p-4 text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-clientes" class="divide-y divide-slate-100 text-sm text-slate-700"></tbody>
+                    </table>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal Novo Cliente Individual -->
+    <div id="modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl border border-slate-100">
+            <h3 class="text-base font-bold text-slate-800 mb-4">Adicionar Cliente para Preventivo</h3>
+            <form id="form-cliente" onsubmit="salvarCliente(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Nome Completo</label>
+                    <input type="text" id="nome" required class="w-full border border-slate-300 rounded-lg p-2.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Telefone (com DDD e DDI, ex: 5531998082184)</label>
+                    <input type="text" id="telefone" placeholder="5531998082184" required class="w-full border border-slate-300 rounded-lg p-2.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Valor (R$)</label>
+                    <input type="number" step="0.01" id="valor" placeholder="0.00" required class="w-full border border-slate-300 rounded-lg p-2.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div class="flex justify-end gap-2 pt-3">
+                    <button type="button" onclick="fecharModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-lg transition">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition">Salvar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Importação em Lote -->
+    <div id="modal-lote" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-lg shadow-2xl border border-slate-100">
+            <h3 class="text-base font-bold text-slate-800 mb-2">Importar Clientes ou Marcar Acionados</h3>
+            <p class="text-xs text-slate-500 mb-4">Cole abaixo os dados (<strong class="text-slate-700">Nome; Telefone; Valor</strong>) OU apenas uma lista de telefones (um por linha) para marcar como já acionados.</p>
+            <div class="mb-4">
+                <textarea id="texto-lote" rows="7" placeholder="Exemplo de importação:&#10;DOUGLAS HENRIQUE ARAUJO;31998082184;1033.35&#10;&#10;Exemplo de baixa em massa (só telefones):&#10;31998082184&#10;31988887777" class="w-full border border-slate-300 rounded-lg p-3 text-xs font-mono focus:ring-2 focus:ring-emerald-500 outline-none resize-none"></textarea>
+            </div>
+            <div class="flex justify-between items-center">
+                <button type="button" onclick="processarBaixaEmMassa()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white text-xs font-semibold rounded-lg transition">✅ Marcar Telefones como Acionados</button>
+                <div class="flex gap-2">
+                    <button type="button" onclick="fecharModalLote()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-lg transition">Cancelar</button>
+                    <button type="button" onclick="processarImportacaoLote()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition">📂 Importar Lista Nova</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuração do seu aplicativo Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDYyKAnvRvB6FZ5w6_2IeYDR5keiQeXFoc",
+            authDomain: "preventivo-8f0ae.firebaseapp.com",
+            projectId: "preventivo-8f0ae",
+            storageBucket: "preventivo-8f0ae.firebasestorage.app",
+            messagingSenderId: "159332398928",
+            appId: "1:159332398928:web:9986f5368ae3ed5f661e55",
+            measurementId: "G-TYVEMVP338"
+        };
+
+        // Inicializando o Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const docRef = db.collection("crc_dados").doc("painel_principal");
+
+        let clientes = [];
+        let statusAtivo = 'Todos';
+        let templateMsg = "Olá {nome}! Passando para lembrar sobre o seu pagamento preventivo no valor de {valor} que vence em breve. Evite encargos!";
+        let debounceTimer = null;
+
+        // Escutador em Tempo Real do Firestore (Sincroniza entre todos os navegadores automaticamente)
+        docRef.onSnapshot((doc) => {
+            const dot = document.getElementById('status-conexao-dot');
+            const texto = document.getElementById('status-conexao-texto');
+            
+            if (dot && texto) {
+                dot.className = "w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse";
+                texto.innerText = "Nuvem Sincronizada";
+            }
+
+            if (doc.exists) {
+                const dados = doc.data();
+                clientes = dados.clientes || [];
+                if (dados.templateMsg) {
+                    templateMsg = dados.templateMsg;
+                    document.getElementById('template-mensagem').value = templateMsg;
+                }
+            } else {
+                // Caso seja a primeiríssima execução
+                salvarNoBanco();
+            }
+            renderizar();
+        }, (error) => {
+            console.error("Erro na conexão com Firestore:", error);
+            const dot = document.getElementById('status-conexao-dot');
+            const texto = document.getElementById('status-conexao-texto');
+            if (dot && texto) {
+                dot.className = "w-2.5 h-2.5 bg-rose-500 rounded-full";
+                texto.innerText = "Erro ao conectar";
+            }
+        });
+
+        function salvarNoBanco() {
+            ordenarClientes();
+            docRef.set({
+                clientes: clientes,
+                templateMsg: templateMsg,
+                ultimaAtualizacao: firebase.firestore.FieldValue.serverTimestamp()
+            }).catch(error => {
+                console.error("Erro ao salvar no banco:", error);
+            });
+        }
+
+        function salvarTemplate() {
+            templateMsg = document.getElementById('template-mensagem').value;
+            salvarNoBanco();
+            alert("Template de mensagem atualizado com sucesso!");
+        }
+
+        function ordenarClientes() {
+            clientes.sort((a, b) => b.valor - a.valor);
+        }
+
+        function mudarFiltroStatus(status) {
+            statusAtivo = status;
+            ['Todos', 'Pendente', 'Acionado', 'Confirmado', 'Pago', 'Não vão pagar'].forEach(s => {
+                let btn = document.getElementById(`btn-status-${s}`);
+                if (btn) {
+                    btn.className = s === status 
+                        ? "px-3 py-1.5 text-xs font-semibold rounded-lg transition bg-blue-600 text-white whitespace-nowrap" 
+                        : "px-3 py-1.5 text-xs font-semibold rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap";
+                }
+            });
+            renderizar();
+        }
+
+        function renderizar() {
+            ordenarClientes();
+
+            let acionados = clientes.filter(c => c.status === 'Acionado' || c.status === 'Confirmado' || c.status === 'Pago').length;
+            let pagantes = clientes.filter(c => c.status === 'Pago').length;
+            
+            let valorPago = clientes.filter(c => c.status === 'Pago').reduce((acc, curr) => acc + curr.valor, 0);
+            let valorConfirmado = clientes.filter(c => c.status === 'Confirmado').reduce((acc, curr) => acc + curr.valor, 0);
+            let valorAberto = clientes.filter(c => c.status === 'Pendente' || c.status === 'Acionado').reduce((acc, curr) => acc + curr.valor, 0);
+            let valorRecusado = clientes.filter(c => c.status === 'Não vão pagar').reduce((acc, curr) => acc + curr.valor, 0);
+            let valorGeral = valorPago + valorConfirmado + valorAberto + valorRecusado;
+
+            document.getElementById('card-acionados').innerText = acionados;
+            document.getElementById('card-pagantes').innerText = pagantes;
+            document.getElementById('card-valorpago').innerText = `R$ ${valorPago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).replace('R$', '').trim()}`;
+            document.getElementById('card-valortotal').innerText = `R$ ${(valorAberto + valorConfirmado).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).replace('R$', '').trim()}`;
+
+            let pctPago = valorGeral > 0 ? ((valorPago / valorGeral) * 100).toFixed(1) : 0;
+            let pctConfirmado = valorGeral > 0 ? ((valorConfirmado / valorGeral) * 100).toFixed(1) : 0;
+            let pctAberto = valorGeral > 0 ? ((valorAberto / valorGeral) * 100).toFixed(1) : 0;
+            let pctRecusado = valorGeral > 0 ? ((valorRecusado / valorGeral) * 100).toFixed(1) : 0;
+
+            document.getElementById('barra-pagos').style.width = `${pctPago}%`;
+            document.getElementById('barra-confirmados').style.width = `${pctConfirmado}%`;
+            document.getElementById('barra-abertos').style.width = `${pctAberto}%`;
+            document.getElementById('barra-recusados').style.width = `${pctRecusado}%`;
+            document.getElementById('texto-porcentagem').innerText = `${pctPago}% Pago`;
+
+            document.getElementById('legenda-val-pago').innerText = `R$ ${valorPago.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            document.getElementById('legenda-pct-pago').innerText = `${pctPago}%`;
+            document.getElementById('legenda-val-confirmado').innerText = `R$ ${valorConfirmado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            document.getElementById('legenda-pct-confirmado').innerText = `${pctConfirmado}%`;
+            document.getElementById('legenda-val-aberto').innerText = `R$ ${valorAberto.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            document.getElementById('legenda-pct-aberto').innerText = `${pctAberto}%`;
+            document.getElementById('legenda-val-recusado').innerText = `R$ ${valorRecusado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            document.getElementById('legenda-pct-recusado').innerText = `${pctRecusado}%`;
+
+            const termoBusca = document.getElementById('filtro-busca').value.toLowerCase();
+            let clientesFiltrados = clientes.filter(c => {
+                let correspondeBusca = c.nome.toLowerCase().includes(termoBusca) || c.telefone.includes(termoBusca);
+                let correspondeStatus = (statusAtivo === 'Todos') || (c.status === statusAtivo);
+                return correspondeBusca && correspondeStatus;
+            });
+
+            const tbody = document.getElementById('tabela-clientes');
+            tbody.innerHTML = '';
+            
+            if(clientes.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 text-xs">Nenhum cliente cadastrado. Clique em "+ Novo Cliente" ou "📂 Importar Vários".</td></tr>`;
+                return;
+            }
+
+            if(clientesFiltrados.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 text-xs">Nenhum cliente encontrado com os filtros atuais.</td></tr>`;
+                return;
+            }
+
+            clientesFiltrados.forEach(c => {
+                let badgeColor = 'bg-slate-100 text-slate-600';
+                if (c.status === 'Pago') badgeColor = 'bg-emerald-100 text-emerald-700';
+                else if (c.status === 'Confirmado') badgeColor = 'bg-teal-100 text-teal-700 font-bold';
+                else if (c.status === 'Acionado') badgeColor = 'bg-amber-100 text-amber-700';
+                else if (c.status === 'Não vão pagar') badgeColor = 'bg-rose-100 text-rose-700';
+
+                let valorFormatado = c.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="p-4 font-medium text-slate-800">${c.nome}</td>
+                        <td class="p-4 text-slate-600">${c.telefone}</td>
+                        <td class="p-4 font-medium text-slate-700">${valorFormatado}</td>
+                        <td class="p-4">
+                            <select onchange="atualizarStatusCliente(${c.id}, this.value)" class="text-xs font-semibold px-2.5 py-1 rounded-full border border-slate-200 outline-none cursor-pointer ${badgeColor}">
+                                <option value="Pendente" ${c.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
+                                <option value="Acionado" ${c.status === 'Acionado' ? 'selected' : ''}>Acionado</option>
+                                <option value="Confirmado" ${c.status === 'Confirmado' ? 'selected' : ''}>✅ Confirmado</option>
+                                <option value="Pago" ${c.status === 'Pago' ? 'selected' : ''}>Pago</option>
+                                <option value="Não vão pagar" ${c.status === 'Não vão pagar' ? 'selected' : ''}>❌ Não vão pagar</option>
+                            </select>
+                        </td>
+                        <td class="p-4">
+                            <input type="text" value="${c.motivo || ''}" oninput="atualizarMotivoCliente(${c.id}, this.value)" placeholder="Digite o motivo ou observação..." class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 focus:bg-white focus:ring-1 focus:ring-rose-500 outline-none">
+                        </td>
+                        <td class="p-4 text-center space-x-1">
+                            <button onclick="acionarWhatsApp(${c.id})" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-2.5 py-1.5 rounded-lg shadow-sm transition font-medium">Wpp</button>
+                            <button onclick="removerCliente(${c.id})" class="text-rose-400 hover:text-rose-600 text-xs px-2 py-1.5 transition">Excluir</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function abrirModal() { document.getElementById('modal').classList.remove('hidden'); }
+        function fecharModal() { document.getElementById('modal').classList.add('hidden'); }
+        function abrirModalLote() { document.getElementById('modal-lote').classList.remove('hidden'); }
+        function fecharModalLote() { document.getElementById('modal-lote').classList.add('hidden'); document.getElementById('texto-lote').value = ''; }
+
+        function atualizarStatusCliente(id, novoStatus) {
+            let cliente = clientes.find(c => c.id === id);
+            if (cliente) { 
+                cliente.status = novoStatus; 
+                salvarNoBanco(); 
+            }
+        }
+
+        function atualizarMotivoCliente(id, novoMotivo) {
+            let cliente = clientes.find(c => c.id === id);
+            if (cliente) { 
+                cliente.motivo = novoMotivo; 
+                // Debounce para não enviar uma requisição ao banco a cada tecla digitada
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    salvarNoBanco();
+                }, 800);
+            }
+        }
+
+        function salvarCliente(e) {
+            e.preventDefault();
+            clientes.push({
+                id: Date.now() + Math.random(),
+                nome: document.getElementById('nome').value.trim(),
+                telefone: document.getElementById('telefone').value.replace(/\D/g, ''),
+                valor: parseFloat(document.getElementById('valor').value),
+                status: 'Pendente',
+                motivo: ''
+            });
+            document.getElementById('form-cliente').reset();
+            fecharModal();
+            salvarNoBanco();
+        }
+
+        function processarImportacaoLote() {
+            const texto = document.getElementById('texto-lote').value.trim();
+            if(!texto) { alert("Cole os dados no campo indicado."); return; }
+
+            const linhas = texto.split('\n');
+            let importadosCount = 0;
+
+            linhas.forEach((linha, index) => {
+                if (!linha.trim()) return;
+                let partes = linha.split(';').length >= 3 ? linha.split(';') : linha.split('\t');
+
+                if (partes.length >= 3) {
+                    let nome = partes[0].trim();
+                    let telefone = partes[partes.length - 2].trim().replace(/\D/g, '');
+                    let valorStr = partes[partes.length - 1].trim().replace(/R\$/gi, '').replace(/\./g, '').replace(',', '.').trim();
+                    let valor = parseFloat(valorStr);
+
+                    if (nome && telefone && !isNaN(valor)) {
+                        clientes.push({ id: Date.now() + index + Math.random(), nome, telefone, valor, status: 'Pendente', motivo: '' });
+                        importadosCount++;
+                    }
+                }
+            });
+
+            if (importadosCount > 0) {
+                alert(`${importadosCount} cliente(s) importado(s) com sucesso!`);
+                fecharModalLote();
+                salvarNoBanco();
+            } else {
+                alert("Erro ao identificar os dados. Formato esperado: Nome; Telefone; Valor");
+            }
+        }
+
+        function processarBaixaEmMassa() {
+            const texto = document.getElementById('texto-lote').value.trim();
+            if(!texto) { alert("Cole a lista de telefones no campo indicado."); return; }
+
+            const telefonesLista = texto.split('\n')
+                .map(linha => linha.trim().replace(/\D/g, ''))
+                .filter(tel => tel.length > 0);
+
+            if(telefonesLista.length === 0) {
+                alert("Nenhum telefone válido encontrado na lista.");
+                return;
+            }
+
+            let alteradosCount = 0;
+
+            clientes.forEach(c => {
+                if (telefonesLista.includes(c.telefone)) {
+                    if (c.status === 'Pendente') {
+                        c.status = 'Acionado';
+                        alteradosCount++;
+                    }
+                }
+            });
+
+            if (alteradosCount > 0) {
+                alert(`${alteradosCount} cliente(s) atualizado(s) para o status "Acionado" com sucesso!`);
+                fecharModalLote();
+                salvarNoBanco();
+            } else {
+                alert("Nenhum cliente pendente foi encontrado na sua base com os telefones informados.");
+            }
+        }
+
+        function acionarWhatsApp(id) {
+            let cliente = clientes.find(c => c.id === id);
+            if (!cliente) return;
+
+            let valorFormatado = cliente.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            let mensagemFinal = templateMsg.replace(/{nome}/g, cliente.nome).replace(/{valor}/g, valorFormatado);
+            let mensagemCodificada = encodeURIComponent(mensagemFinal);
+
+            if (cliente.status === 'Pendente') {
+                cliente.status = 'Acionado';
+                salvarNoBanco();
+            }
+
+            window.open(`https://web.whatsapp.com/send?phone=${cliente.telefone}&text=${mensagemCodificada}`, '_blank');
+        }
+
+        function exportarExcel() {
+            if (clientes.length === 0) { alert("Não há dados para exportar."); return; }
+
+            let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Worksheet ss:Name="Relatorio Preventivo">
+  <Table ss:ExpandedColumnCount="5" ss:ExpandedRowCount="${clientes.length + 1}" x:FullColumns="1" x:FullRows="1">
+   <Row>
+    <Cell><Data ss:Type="String">Nome do Cliente</Data></Cell>
+    <Cell><Data ss:Type="String">Telefone</Data></Cell>
+    <Cell><Data ss:Type="String">Valor (R$)</Data></Cell>
+    <Cell><Data ss:Type="String">Status Atual</Data></Cell>
+    <Cell><Data ss:Type="String">Motivo / Observação</Data></Cell>
+   </Row>`;
+
+            clientes.forEach(c => {
+                xml += `
+   <Row>
+    <Cell><Data ss:Type="String">${c.nome}</Data></Cell>
+    <Cell><Data ss:Type="String">${c.telefone}</Data></Cell>
+    <Cell><Data ss:Type="Number">${c.valor}</Data></Cell>
+    <Cell><Data ss:Type="String">${c.status}</Data></Cell>
+    <Cell><Data ss:Type="String">${c.motivo || ''}</Data></Cell>
+   </Row>`;
+            });
+
+            xml += `
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <AutoFilter x:Range="R1C1:R${clientes.length + 1}C5"></AutoFilter>
+   <FreezePanes/>
+   <FrozenNoSplit/>
+   <SplitVertical>0</SplitVertical>
+   <SplitHorizontal>1</SplitHorizontal>
+   <TopRowBottomPane>1</TopRowBottomPane>
+   <ActivePane>2</ActivePane>
+  </WorksheetOptions>
+ </Worksheet>
+</Workbook>`;
+
+            let blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = 'relatorio_preventivo_crc.xls';
+            a.click();
+        }
+
+        function removerCliente(id) {
+            if(confirm("Deseja realmente excluir este cliente?")) { 
+                clientes = clientes.filter(c => c.id !== id); 
+                salvarNoBanco(); 
+            }
+        }
+
+        function excluirTodos() {
+            if (clientes.length === 0) { alert("A lista já está vazia."); return; }
+            if (confirm("ATENÇÃO: Deseja realmente excluir TODOS os clientes?")) { 
+                clientes = []; 
+                salvarNoBanco(); 
+            }
+        }
+    </script>
+</body>
+</html>
