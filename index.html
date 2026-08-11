@@ -574,7 +574,6 @@
                 TODAS_FAIXAS.forEach(f => {
                     let cFaixa = clientesDaAba.filter(c => (c.faixaAtraso || 'C | 61 a 90') === f);
                     
-                    // Saldo em Aberto (Pendente + Acionado)
                     let cAberto = cFaixa.filter(c => ['Pendente', 'Acionado'].includes(c.status));
                     let vAberto = cAberto.reduce((a, b) => a + b.valor, 0);
                     
@@ -590,7 +589,6 @@
                         </div>
                     `;
 
-                    // Valor Pago
                     let cPago = cFaixa.filter(c => c.status === 'Pago');
                     let vPago = cPago.reduce((a, b) => a + b.valor, 0);
                     let vTotalFaixa = cFaixa.reduce((a, b) => a + b.valor, 0);
@@ -693,9 +691,18 @@
             const faixa = document.getElementById('faixaAtraso').value;
 
             if (nome && telefone && valor) {
-                const novoCliente = { aba_id: abaAtivaId, nome, telefone, valor, faixa_atraso: faixa, status: 'Pendente', motivo: '' };
+                const novoCliente = { 
+                    id: Date.now(), 
+                    aba_id: abaAtivaId, 
+                    nome, 
+                    telefone, 
+                    valor, 
+                    faixa_atraso: faixa, 
+                    status: 'Pendente', 
+                    motivo: '' 
+                };
                 const { data, error } = await db.from('clientes').insert([novoCliente]).select();
-                if(error) return alert("Erro ao salvar cliente.");
+                if(error) return alert("Erro ao salvar cliente: " + error.message);
                 
                 if(data && data.length > 0) {
                     clientes.push({
@@ -722,7 +729,7 @@
             const linhas = texto.split('\n');
             let insercoes = [];
             
-            linhas.forEach((linha) => {
+            linhas.forEach((linha, index) => {
                 let partes = linha.split(';');
                 if (partes.length >= 3) {
                     const nomeStr = partes[0].trim().toUpperCase();
@@ -730,8 +737,14 @@
                     const numVal = parseFloat(valStr);
                     if(nomeStr && !isNaN(numVal)) {
                         insercoes.push({
-                            aba_id: abaAtivaId, nome: nomeStr, telefone: partes[1].replace(/\D/g, ''),
-                            valor: numVal, faixa_atraso: partes[3] ? normalizarFaixa(partes[3]) : 'C | 61 a 90', status: 'Pendente', motivo: ''
+                            id: Date.now() + index,
+                            aba_id: abaAtivaId, 
+                            nome: nomeStr, 
+                            telefone: partes[1].replace(/\D/g, ''),
+                            valor: numVal, 
+                            faixa_atraso: partes[3] ? normalizarFaixa(partes[3]) : 'C | 61 a 90', 
+                            status: 'Pendente', 
+                            motivo: ''
                         });
                     }
                 }
