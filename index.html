@@ -3,330 +3,251 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CRC - Gestão de Cobrança e Preventivo (Supabase)</title>
+    <title>Painel Preventivo | Gestão de Cobrança</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Fonte Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- SDK do Supabase v2 -->
+    <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-    </style>
 </head>
-<body class="bg-slate-100 text-slate-800 antialiased">
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen p-4 md:p-8">
 
-    <div class="flex h-screen overflow-hidden">
-        <!-- Sidebar / Configuração da Mensagem -->
-        <aside class="w-80 bg-slate-900 text-white flex flex-col justify-between p-6 shadow-2xl z-10 shrink-0">
-            <div class="space-y-6">
-                <div class="flex items-center gap-3 border-b border-slate-800 pb-4">
-                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-xl font-bold">
-                        💬
-                    </div>
-                    <div>
-                        <h1 class="text-base font-bold text-white tracking-wide">CRC WhatsApp</h1>
-                        <p class="text-[11px] text-slate-400">Gestão Preventiva e Atraso</p>
-                    </div>
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <!-- ================= CABEÇALHO ================= -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            <div>
+                <h1 class="text-2xl font-black text-slate-800">Sistema Preventivo</h1>
+                <p class="text-sm text-slate-500 font-medium mt-1">Gestão de contatos e acordos</p>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200">
+                    <div id="status-conexao-dot" class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse shrink-0"></div>
+                    <span id="status-conexao-texto" class="text-xs font-semibold text-slate-600">Conectando...</span>
                 </div>
+            </div>
+        </header>
 
-                <!-- Personalizar a Mensagem -->
-                <div class="bg-slate-800/80 backdrop-blur p-4 rounded-xl border border-slate-700/60 space-y-3">
-                    <div class="flex justify-between items-center">
-                        <h2 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Template da Mensagem</h2>
-                        <span class="text-[10px] bg-slate-700 text-emerald-400 px-2 py-0.5 rounded font-mono">Variáveis</span>
-                    </div>
-                    <p class="text-[11px] text-slate-400 leading-relaxed">
-                        Tags: <code class="bg-slate-900 text-emerald-400 px-1 py-0.5 rounded font-mono text-[10px]">{nome}</code>, 
-                        <code class="bg-slate-900 text-emerald-400 px-1 py-0.5 rounded font-mono text-[10px]">{valor}</code>, 
-                        <code class="bg-slate-900 text-emerald-400 px-1 py-0.5 rounded font-mono text-[10px]">{faixa}</code>
-                    </p>
-                    <textarea id="template-mensagem" rows="5" class="w-full bg-slate-900/90 text-slate-200 border border-slate-700 rounded-lg p-3 text-xs focus:ring-2 focus:ring-emerald-500 outline-none resize-none leading-relaxed transition">Olá {nome}! Lembramos do seu título no valor de {valor} na faixa {faixa}. Entre em contato conosco para regularizar seu débito e evitar demais encargos!</textarea>
-                    <button onclick="salvarTemplate()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold py-2.5 rounded-lg transition shadow-md shadow-emerald-900/20 active:scale-[0.98]">
-                        💾 Salvar Template
-                    </button>
-                </div>
+        <!-- ================= GESTÃO DE ABAS ================= -->
+        <div class="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
+            <div id="container-abas" class="flex gap-2">
+                <!-- Abas renderizadas aqui -->
+            </div>
+            <button onclick="criarNovaAba()" class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition shadow-sm">
+                + Nova Aba
+            </button>
+        </div>
 
-                <!-- Status de Conexão -->
-                <div class="bg-slate-800/40 p-3.5 rounded-xl border border-slate-800 flex items-center gap-3">
-                    <span id="status-conexao-dot" class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse shrink-0"></span>
-                    <div>
-                        <p id="status-conexao-texto" class="text-xs font-medium text-slate-200">Sincronizando...</p>
-                        <p class="text-[10px] text-slate-500">Banco Supabase Postgres</p>
-                    </div>
+        <!-- ================= CARDS DE RESUMO ================= -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                <p class="text-xs text-slate-500 font-bold uppercase tracking-wide">Valor em Aberto</p>
+                <h2 id="card-valortotal" class="text-2xl font-black text-slate-800 mt-1">R$ 0,00</h2>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-b-4 border-b-emerald-400">
+                <p class="text-xs text-slate-500 font-bold uppercase tracking-wide">Valor Recuperado (Pago)</p>
+                <h2 id="card-valorpago" class="text-2xl font-black text-emerald-600 mt-1">R$ 0,00</h2>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                <p class="text-xs text-slate-500 font-bold uppercase tracking-wide">Clientes Acionados</p>
+                <h2 id="card-acionados" class="text-2xl font-black text-blue-600 mt-1">0 / 0</h2>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                <p class="text-xs text-slate-500 font-bold uppercase tracking-wide">Qtd. Pagantes</p>
+                <h2 id="card-pagantes" class="text-2xl font-black text-slate-800 mt-1">0</h2>
+            </div>
+        </div>
+
+        <!-- ================= BARRA DE PROGRESSO E LEGENDA ================= -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            <div class="flex justify-between items-end mb-2">
+                <span class="text-sm font-bold text-slate-700">Progresso de Recuperação</span>
+                <span id="texto-porcentagem" class="text-xs font-black bg-emerald-100 text-emerald-800 px-2 py-1 rounded-md">0.0% Pago (R$)</span>
+            </div>
+            
+            <div class="w-full h-3 bg-slate-100 rounded-full flex overflow-hidden">
+                <div id="barra-pagos" class="bg-emerald-500 h-full transition-all duration-500" style="width: 0%"></div>
+                <div id="barra-confirmados" class="bg-teal-400 h-full transition-all duration-500" style="width: 0%"></div>
+                <div id="barra-abertos" class="bg-slate-300 h-full transition-all duration-500" style="width: 100%"></div>
+                <div id="barra-recusados" class="bg-rose-400 h-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+            
+            <div class="flex flex-wrap gap-4 mt-4 text-xs">
+                <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-sm bg-emerald-500"></div><span class="font-semibold text-slate-600">Pago:</span> <span id="legenda-val-pago" class="font-bold text-slate-800">R$ 0,00</span> <span id="legenda-pct-pago" class="text-slate-400">(0%)</span></div>
+                <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-sm bg-teal-400"></div><span class="font-semibold text-slate-600">Confirmado:</span> <span id="legenda-val-confirmado" class="font-bold text-slate-800">R$ 0,00</span> <span id="legenda-pct-confirmado" class="text-slate-400">(0%)</span></div>
+                <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-sm bg-slate-300"></div><span class="font-semibold text-slate-600">Aberto:</span> <span id="legenda-val-aberto" class="font-bold text-slate-800">R$ 0,00</span> <span id="legenda-pct-aberto" class="text-slate-400">(100%)</span></div>
+                <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-sm bg-rose-400"></div><span class="font-semibold text-slate-600">Recusado:</span> <span id="legenda-val-recusado" class="font-bold text-slate-800">R$ 0,00</span> <span id="legenda-pct-recusado" class="text-slate-400">(0%)</span></div>
+            </div>
+        </div>
+
+        <!-- ================= RESUMO DE FAIXAS (EM ABERTO) ================= -->
+        <div>
+            <h3 class="text-sm font-bold text-slate-700 mb-3">Títulos em Aberto por Faixa</h3>
+            <div id="grid-faixas-resumo" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-10 gap-2">
+                <!-- Preenchido pelo JS -->
+            </div>
+        </div>
+
+        <!-- ================= TOOLBAR (FILTROS E AÇÕES) ================= -->
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+            <div class="flex flex-wrap items-center gap-2">
+                <input type="text" id="filtro-busca" onkeyup="renderizar()" placeholder="🔍 Buscar nome ou telefone..." class="px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-indigo-500 transition min-w-[250px]">
+                
+                <div class="flex bg-slate-50 p-1 rounded-lg border border-slate-200 overflow-x-auto">
+                    <button id="btn-status-Todos" onclick="mudarFiltroStatus('Todos')" class="px-3 py-1.5 text-xs font-medium rounded-lg transition bg-slate-800 text-white whitespace-nowrap">Todos</button>
+                    <button id="btn-status-Pendente" onclick="mudarFiltroStatus('Pendente')" class="px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">Pendente</button>
+                    <button id="btn-status-Acionado" onclick="mudarFiltroStatus('Acionado')" class="px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">Acionado</button>
+                    <button id="btn-status-Confirmado" onclick="mudarFiltroStatus('Confirmado')" class="px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">Confirmado</button>
+                    <button id="btn-status-Pago" onclick="mudarFiltroStatus('Pago')" class="px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">Pago</button>
+                    <button id="btn-status-Não vão pagar" onclick="mudarFiltroStatus('Não vão pagar')" class="px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">Não vão pagar</button>
                 </div>
             </div>
 
-            <div class="text-[10px] text-slate-500 text-center border-t border-slate-800/80 pt-4">
-                Painel Interno CRC • Versão Supabase
+            <div class="flex items-center gap-2 w-full lg:w-auto">
+                <button onclick="abrirModalFaixasPago()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold px-3 py-2 rounded-lg transition flex items-center gap-1.5">
+                    📊 Faixas Pagas
+                </button>
+                <button onclick="abrirModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition flex items-center gap-1.5 shadow-sm">
+                    + Cliente
+                </button>
+                <button onclick="abrirModalLote()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg transition flex items-center gap-1.5 shadow-sm">
+                    📥 Lote
+                </button>
+                <button onclick="exportarExcel()" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition flex items-center gap-1.5 shadow-sm" title="Exportar CSV">
+                    📊 Excel
+                </button>
+                <button onclick="excluirTodos()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 border border-rose-200 text-xs font-bold px-3 py-2 rounded-lg transition" title="Limpar Aba">
+                    🗑️ Limpar
+                </button>
             </div>
-        </aside>
+        </div>
 
-        <!-- Conteúdo Principal -->
-        <div class="flex-1 flex flex-col overflow-y-auto">
-            <!-- Topbar -->
-            <header class="bg-white/80 backdrop-blur sticky top-0 z-20 shadow-sm px-8 py-4 border-b border-slate-200/80 space-y-4">
-                <div class="flex flex-wrap gap-4 justify-between items-center">
-                    <div>
-                        <h2 class="text-xl font-bold text-slate-800">Painel Geral de Cobrança</h2>
-                        <p class="text-xs text-slate-500">Monitore e acione suas listas organizadas por abas</p>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                        <button onclick="exportarExcel()" class="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-medium px-3.5 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5 active:scale-95">
-                            📊 Exportar Excel
-                        </button>
-                        <button onclick="excluirTodos()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-medium px-3.5 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5 active:scale-95">
-                            🗑️ Limpar Aba
-                        </button>
-                        <button onclick="abrirModalLote()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium px-4 py-2 rounded-lg shadow-sm transition flex items-center gap-1.5 active:scale-95">
-                            📂 Importar Lote
-                        </button>
-                        <button onclick="abrirModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-md shadow-emerald-600/20 transition flex items-center gap-1.5 active:scale-95">
-                            + Novo Cliente
-                        </button>
-                    </div>
+        <!-- ================= TABELA DE CLIENTES ================= -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm whitespace-nowrap">
+                    <thead class="bg-slate-50 border-b border-slate-200 text-slate-600">
+                        <tr>
+                            <th class="p-4 font-bold">NOME DO CLIENTE</th>
+                            <th class="p-4 font-bold">TELEFONE</th>
+                            <th class="p-4 font-bold">VALOR (R$)</th>
+                            <th class="p-4 font-bold">FAIXA DE ATRASO</th>
+                            <th class="p-4 font-bold">STATUS</th>
+                            <th class="p-4 font-bold">OBSERVAÇÕES (MOTIVO)</th>
+                            <th class="p-4 font-bold text-center">AÇÕES</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-clientes" class="divide-y divide-slate-100">
+                        <!-- Clientes inseridos via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ================= CONFIGURAÇÃO DE MENSAGEM ================= -->
+        <div class="bg-slate-100 p-6 rounded-2xl border border-slate-200 mt-8">
+            <h3 class="text-sm font-bold text-slate-700 mb-2">Template de Mensagem (WhatsApp)</h3>
+            <p class="text-xs text-slate-500 mb-3">Use <span class="font-bold text-indigo-600">{nome}</span>, <span class="font-bold text-indigo-600">{valor}</span> e <span class="font-bold text-indigo-600">{faixa}</span> para substituir automaticamente.</p>
+            <textarea id="template-mensagem" class="w-full p-3 text-sm rounded-lg border border-slate-300 outline-none focus:border-indigo-500 mb-3 h-20 bg-white"></textarea>
+            <button onclick="salvarTemplate()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-lg transition">Salvar Template no Banco</button>
+        </div>
+
+    </div>
+
+    <!-- ================= MODAL: FAIXAS PAGAS ================= -->
+    <div id="modal-faixas-pago" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-lg font-black text-slate-800">📊 Resumo de Pagamentos por Faixa</h3>
+                    <p class="text-xs text-slate-500 font-medium">Valores e percentuais de recuperação divididos por faixa de atraso nesta aba.</p>
                 </div>
+                <button onclick="fecharModalFaixasPago()" class="text-slate-400 hover:text-slate-600 font-bold text-xl p-2 transition">✕</button>
+            </div>
+            
+            <div id="grid-faixas-pago" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                <!-- Preenchido pelo JS -->
+            </div>
 
-                <!-- Barra de Navegação por Abas -->
-                <div class="flex items-center gap-2 border-t border-slate-100 pt-3 overflow-x-auto">
-                    <div id="container-abas" class="flex items-center gap-2 overflow-x-auto pb-1">
-                        <!-- Abas renderizadas via JS -->
-                    </div>
-                    <button onclick="criarNovaAba()" class="bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-dashed border-slate-300 hover:border-emerald-400 text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1 shrink-0">
-                        ➕ Nova Aba
-                    </button>
-                </div>
-            </header>
-
-            <main class="p-8 space-y-6">
-                <!-- Cards de Métricas Principais -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between">
-                        <div class="flex justify-between items-start">
-                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Clientes Acionados</span>
-                            <span class="p-2 rounded-xl bg-blue-50 text-blue-600 text-xs">📲</span>
-                        </div>
-                        <div class="mt-3">
-                            <p id="card-acionados" class="text-2xl font-extrabold text-slate-800">0</p>
-                            <span class="text-[11px] text-slate-400">Total acionado nesta aba</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between">
-                        <div class="flex justify-between items-start">
-                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Clientes Pagantes</span>
-                            <span class="p-2 rounded-xl bg-emerald-50 text-emerald-600 text-xs">✅</span>
-                        </div>
-                        <div class="mt-3">
-                            <p id="card-pagantes" class="text-2xl font-extrabold text-emerald-600">0</p>
-                            <span class="text-[11px] text-slate-400">Acordos liquidados</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between">
-                        <div class="flex justify-between items-start">
-                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Valor Recuperado</span>
-                            <span class="p-2 rounded-xl bg-emerald-50 text-emerald-600 text-xs">💰</span>
-                        </div>
-                        <div class="mt-3">
-                            <p id="card-valorpago" class="text-2xl font-extrabold text-emerald-600">R$ 0,00</p>
-                            <span class="text-[11px] text-emerald-600/80 font-medium">Recuperado nesta aba</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between">
-                        <div class="flex justify-between items-start">
-                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Valor em Aberto</span>
-                            <span class="p-2 rounded-xl bg-amber-50 text-amber-600 text-xs">⏳</span>
-                        </div>
-                        <div class="mt-3">
-                            <p id="card-valortotal" class="text-2xl font-extrabold text-amber-600">R$ 0,00</p>
-                            <span class="text-[11px] text-amber-600/80 font-medium">Pendente + Acionado</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Resumo Visual por Faixa de Atraso -->
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80">
-                    <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Distribuição do Saldo em Aberto por Faixa (Aba Atual)</h3>
-                    <div id="grid-faixas-resumo" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                        <!-- Gerado Dinamicamente -->
-                    </div>
-                </div>
-
-                <!-- Resumo de Valor PAGO por Faixa de Atraso -->
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80">
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">💰 Valor Recuperado (Pago) por Faixa de Atraso</h3>
-                        <span class="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold px-2 py-0.5 rounded-full">Aba Ativa</span>
-                    </div>
-                    <div id="grid-faixas-pago" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                        <!-- Gerado Dinamicamente via JS -->
-                    </div>
-                </div>
-
-                <!-- Progresso de Conversão da Carteira -->
-                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 space-y-3">
-                    <div class="flex justify-between items-center">
-                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Status Geral da Carteira da Aba (Distribuição R$)</h3>
-                        <span id="texto-porcentagem" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">0% Pago</span>
-                    </div>
-                    <div class="w-full bg-slate-100 h-3.5 rounded-full overflow-hidden flex shadow-inner">
-                        <div id="barra-pagos" class="bg-emerald-500 h-full transition-all duration-500" style="width: 0%"></div>
-                        <div id="barra-confirmados" class="bg-teal-500 h-full transition-all duration-500" style="width: 0%"></div>
-                        <div id="barra-abertos" class="bg-amber-400 h-full transition-all duration-500" style="width: 100%"></div>
-                        <div id="barra-recusados" class="bg-rose-500 h-full transition-all duration-500" style="width: 0%"></div>
-                    </div>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-slate-600 pt-2">
-                        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span> Pagos: <strong id="legenda-val-pago">R$ 0,00</strong> (<span id="legenda-pct-pago">0%</span>)</div>
-                        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 bg-teal-500 rounded-full"></span> Confirmados: <strong id="legenda-val-confirmado">R$ 0,00</strong> (<span id="legenda-pct-confirmado">0%</span>)</div>
-                        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 bg-amber-400 rounded-full"></span> Em Aberto: <strong id="legenda-val-aberto">R$ 0,00</strong> (<span id="legenda-pct-aberto">0%</span>)</div>
-                        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 bg-rose-500 rounded-full"></span> Não vão pagar: <strong id="legenda-val-recusado">R$ 0,00</strong> (<span id="legenda-pct-recusado">0%</span>)</div>
-                    </div>
-                </div>
-
-                <!-- Área de Filtros e Busca -->
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 space-y-3">
-                    <div class="flex flex-col lg:flex-row gap-3 justify-between items-center">
-                        <div class="relative w-full lg:w-80">
-                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 text-xs">🔍</span>
-                            <input type="text" id="filtro-busca" oninput="renderizar()" placeholder="Buscar cliente ou telefone nesta aba..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-700 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition">
-                        </div>
-
-                        <!-- Seleção do Filtro por Faixa de Atraso -->
-                        <div class="flex items-center gap-2 w-full lg:w-auto">
-                            <span class="text-xs font-semibold text-slate-500 whitespace-nowrap">Faixa:</span>
-                            <select id="filtro-faixa" onchange="mudarFiltroFaixa(this.value)" class="w-full lg:w-auto bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
-                                <option value="Todas">Todas as Faixas</option>
-                                <option value="Preventivo">Preventivo</option>
-                                <option value="A | 1 a 30">A | 1 a 30</option>
-                                <option value="B | 31 a 60">B | 31 a 60</option>
-                                <option value="C | 61 a 90">C | 61 a 90</option>
-                                <option value="D | 91 a 120">D | 91 a 120</option>
-                                <option value="E | 121 a 150">E | 121 a 150</option>
-                                <option value="F | 151 a 180">F | 151 a 180</option>
-                                <option value="G | 181 a 360">G | 181 a 360</option>
-                                <option value="H | 361 a 720">H | 361 a 720</option>
-                                <option value="+720 dias">+720 dias</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Filtro por Status -->
-                    <div class="flex gap-1.5 overflow-x-auto pb-1 pt-1 border-t border-slate-100">
-                        <button onclick="mudarFiltroStatus('Todos')" id="btn-status-Todos" class="px-3 py-1.5 text-xs font-medium rounded-lg transition bg-slate-800 text-white whitespace-nowrap">Todos Status</button>
-                        <button onclick="mudarFiltroStatus('Pendente')" id="btn-status-Pendente" class="px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">Pendentes</button>
-                        <button onclick="mudarFiltroStatus('Acionado')" id="btn-status-Acionado" class="px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">Acionados</button>
-                        <button onclick="mudarFiltroStatus('Confirmado')" id="btn-status-Confirmado" class="px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">✅ Confirmados</button>
-                        <button onclick="mudarFiltroStatus('Pago')" id="btn-status-Pago" class="px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">Pagos</button>
-                        <button onclick="mudarFiltroStatus('Não vão pagar')" id="btn-status-Não vão pagar" class="px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">❌ Não vão pagar</button>
-                    </div>
-                </div>
-
-                <!-- Tabela de Clientes da Aba Ativa -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-slate-50/80 border-b border-slate-200/80 text-[11px] text-slate-500 uppercase font-semibold tracking-wider">
-                                    <th class="p-4">Cliente</th>
-                                    <th class="p-4">Telefone</th>
-                                    <th class="p-4">Valor</th>
-                                    <th class="p-4">Faixa de Atraso</th>
-                                    <th class="p-4">Status</th>
-                                    <th class="p-4">Motivo / Observação</th>
-                                    <th class="p-4 text-center">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody id="tabela-clientes" class="divide-y divide-slate-100 text-xs text-slate-700"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </main>
+            <div class="mt-6 flex justify-end">
+                <button onclick="fecharModalFaixasPago()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-5 py-2.5 rounded-lg transition">
+                    Fechar
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Modal Novo Cliente -->
-    <div id="modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl border border-slate-100">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-base font-bold text-slate-800">Adicionar Cliente</h3>
-                <button onclick="fecharModal()" class="text-slate-400 hover:text-slate-600">✕</button>
-            </div>
+    <!-- ================= MODAL: NOVO CLIENTE ================= -->
+    <div id="modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+            <h2 class="text-lg font-black text-slate-800 mb-4">Adicionar Novo Cliente</h2>
             <form id="form-cliente" onsubmit="salvarCliente(event)" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Nome Completo</label>
-                    <input type="text" id="nome" required class="w-full border border-slate-200 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-emerald-500 outline-none">
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Nome Completo</label>
+                    <input type="text" id="nome" required class="w-full p-2.5 text-sm border border-slate-300 rounded-lg outline-none focus:border-indigo-500 bg-slate-50">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Telefone (DDD + Numero)</label>
-                    <input type="text" id="telefone" placeholder="5531998082184" required class="w-full border border-slate-200 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-emerald-500 outline-none">
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Telefone (Somente números)</label>
+                    <input type="text" id="telefone" required class="w-full p-2.5 text-sm border border-slate-300 rounded-lg outline-none focus:border-indigo-500 bg-slate-50">
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Valor (R$)</label>
-                        <input type="number" step="0.01" id="valor" placeholder="0.00" required class="w-full border border-slate-200 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-emerald-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Faixa de Atraso</label>
-                        <select id="faixaAtraso" class="w-full border border-slate-200 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
-                            <option value="Preventivo">Preventivo</option>
-                            <option value="A | 1 a 30">A | 1 a 30</option>
-                            <option value="B | 31 a 60">B | 31 a 60</option>
-                            <option value="C | 61 a 90" selected>C | 61 a 90</option>
-                            <option value="D | 91 a 120">D | 91 a 120</option>
-                            <option value="E | 121 a 150">E | 121 a 150</option>
-                            <option value="F | 151 a 180">F | 151 a 180</option>
-                            <option value="G | 181 a 360">G | 181 a 360</option>
-                            <option value="H | 361 a 720">H | 361 a 720</option>
-                            <option value="+720 dias">+720 dias</option>
-                        </select>
-                    </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Valor Original (R$)</label>
+                    <input type="number" id="valor" step="0.01" required class="w-full p-2.5 text-sm border border-slate-300 rounded-lg outline-none focus:border-indigo-500 bg-slate-50">
                 </div>
-                <div class="flex justify-end gap-2 pt-3">
-                    <button type="button" onclick="fecharModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-xl transition">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl transition shadow-md shadow-emerald-600/20">Salvar Cliente</button>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Faixa de Atraso Inicial</label>
+                    <select id="faixaAtraso" class="w-full p-2.5 text-sm border border-slate-300 rounded-lg outline-none focus:border-indigo-500 bg-slate-50">
+                        <option value="Preventivo">Preventivo</option>
+                        <option value="A | 1 a 30">A | 1 a 30</option>
+                        <option value="B | 31 a 60">B | 31 a 60</option>
+                        <option value="C | 61 a 90" selected>C | 61 a 90</option>
+                        <option value="D | 91 a 120">D | 91 a 120</option>
+                        <option value="E | 121 a 150">E | 121 a 150</option>
+                        <option value="F | 151 a 180">F | 151 a 180</option>
+                        <option value="G | 181 a 360">G | 181 a 360</option>
+                        <option value="H | 361 a 720">H | 361 a 720</option>
+                        <option value="+720 dias">+720 dias</option>
+                    </select>
+                </div>
+                <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="fecharModal()" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition shadow-sm">Salvar Cliente</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Modal Importação em Lote -->
-    <div id="modal-lote" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-white p-6 rounded-2xl w-full max-w-lg shadow-2xl border border-slate-100">
-            <div class="flex justify-between items-center mb-2">
-                <h3 class="text-base font-bold text-slate-800">Importação e Baixa na Aba Ativa</h3>
-                <button onclick="fecharModalLote()" class="text-slate-400 hover:text-slate-600">✕</button>
-            </div>
-            <p class="text-xs text-slate-500 mb-3">
-                Cole no formato: <strong class="text-slate-700">Nome; Telefone; Valor; Faixa</strong><br>
-                *(Exemplos de faixa: <code class="bg-slate-100 px-1 py-0.5 rounded">C | 61 a 90</code>, <code class="bg-slate-100 px-1 py-0.5 rounded">D | 91 a 120</code>, <code class="bg-slate-100 px-1 py-0.5 rounded">61 a 90</code>)*.
-            </p>
-            <div class="mb-4">
-                <textarea id="texto-lote" rows="7" placeholder="Exemplo com faixa:&#10;DOUGLAS HENRIQUE;31998082184;1033.35;C | 61 a 90&#10;MARIA SILVA;31988887777;500.00;D | 91 a 120&#10;&#10;Ou apenas lista de telefones para acionar em massa nesta aba:&#10;31998082184&#10;31988887777" class="w-full border border-slate-200 rounded-xl p-3 text-xs font-mono focus:ring-2 focus:ring-emerald-500 outline-none resize-none bg-slate-50"></textarea>
-            </div>
-            <div class="flex flex-wrap justify-between items-center gap-2">
-                <button type="button" onclick="processarBaixaEmMassa()" class="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-white text-xs font-semibold rounded-xl transition">✅ Marcar Telefones como Acionados</button>
-                <div class="flex gap-2">
-                    <button type="button" onclick="fecharModalLote()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-xl transition">Cancelar</button>
-                    <button type="button" onclick="processarImportacaoLote()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl transition shadow-md shadow-emerald-600/20">📂 Importar Lista</button>
+    <!-- ================= MODAL: IMPORTAÇÃO E LOTE ================= -->
+    <div id="modal-lote" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h2 class="text-lg font-black text-slate-800">Ações em Lote</h2>
+                    <p class="text-xs text-slate-500 mt-1">Cole os dados no formato: <span class="font-mono bg-slate-100 px-1 rounded text-slate-700">NOME;TELEFONE;VALOR;FAIXA</span></p>
                 </div>
+                <button onclick="fecharModalLote()" class="text-slate-400 hover:text-slate-600 text-lg font-bold p-1">✕</button>
+            </div>
+            
+            <textarea id="texto-lote" class="w-full h-64 p-3 text-xs font-mono border border-slate-300 rounded-lg outline-none focus:border-indigo-500 bg-slate-50 whitespace-pre overflow-auto" placeholder="MARIA DA SILVA;11999999999;150.50;C | 61 a 90&#10;JOAO SOUZA;11988888888;300.00;Preventivo"></textarea>
+            
+            <div class="flex justify-end gap-3 mt-4">
+                <button onclick="processarBaixaEmMassa()" class="px-4 py-2.5 text-xs font-bold bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg transition border border-blue-200" title="Altera o status para Acionado com base nos telefones colados">
+                    ✔️ Baixa em Massa (Acionado)
+                </button>
+                <button onclick="processarImportacaoLote()" class="px-4 py-2.5 text-xs font-bold bg-slate-800 hover:bg-slate-900 text-white rounded-lg transition shadow-sm">
+                    📥 Importar Clientes
+                </button>
             </div>
         </div>
     </div>
 
+    <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // CONFIGURAÇÕES DO SUPABASE FORNECIDAS
+        // CONFIGURAÇÕES DO SUPABASE
         const SUPABASE_URL = "https://kgidkxaqvgcqiqwqxvut.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtnaWRreGFxdmdjcWlxd3F4dnV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0ODc0MzAsImV4cCI6MjA5ODA2MzQzMH0.DLQoO8_q_QeW-a084ZDCFRc0OIeuEDaYpkUg2tSCB0E";
 
-        // CORREÇÃO: Mudamos a variável de 'supabase' para 'db' para não conflitar com a biblioteca
+        // Variavel de conexão corrigida
         const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let abas = [];
@@ -351,7 +272,6 @@
             '+720 dias'
         ];
 
-        // Inicialização e Carregamento do Supabase
         async function carregarDados() {
             atualizarStatusConexao(false);
 
@@ -363,14 +283,11 @@
                 if (dataAbas && dataAbas.length > 0) {
                     abas = dataAbas;
                 } else {
-                    // Garante ao menos uma aba padrão se o banco estiver limpo
                     await db.from('abas').insert([{ id: 'aba_padrao', nome: 'Preventivo 11/08' }]);
                     abas = [{ id: 'aba_padrao', nome: 'Preventivo 11/08' }];
                 }
 
-                if (!abas.some(a => a.id === abaAtivaId)) {
-                    abaAtivaId = abas[0].id;
-                }
+                if (!abas.some(a => a.id === abaAtivaId)) abaAtivaId = abas[0].id;
 
                 // 2. Buscar Clientes
                 const { data: dataClientes, error: errClientes } = await db.from('clientes').select('*');
@@ -387,12 +304,17 @@
                     motivo: c.motivo || ''
                 }));
 
-                // 3. Buscar Configurações
-                const { data: dataConfig } = await db.from('configuracoes').select('*').eq('chave', 'templateMsg').single();
-                if (dataConfig) {
-                    templateMsg = dataConfig.valor;
-                    document.getElementById('template-mensagem').value = templateMsg;
+                // 3. Buscar Configurações (Com proteção Try/Catch)
+                try {
+                    const { data: dataConfig, error: errConfig } = await db.from('configuracoes').select('*').eq('chave', 'templateMsg').single();
+                    if (!errConfig && dataConfig) {
+                        templateMsg = dataConfig.valor;
+                    }
+                } catch (e) {
+                    console.warn("Tabela de configurações não acessível, usando template padrão.");
                 }
+                
+                document.getElementById('template-mensagem').value = templateMsg;
 
                 atualizarStatusConexao(true);
                 renderizarAbas();
@@ -400,7 +322,7 @@
                 assinarRealtime();
                 
             } catch (error) {
-                console.error("Erro ao carregar dados do Supabase:", error);
+                console.error("Erro ao carregar dados:", error);
                 atualizarStatusConexao(false, "Erro de Conexão");
             }
         }
@@ -408,11 +330,8 @@
         function assinarRealtime() {
             db.channel('custom-all-channel')
                 .on('postgres_changes', { event: '*', schema: 'public' }, payload => {
-                    // Evita "flicker" recarregando em lote
                     clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(() => {
-                        carregarDadosSilencioso();
-                    }, 800);
+                    debounceTimer = setTimeout(() => { carregarDadosSilencioso(); }, 800);
                 })
                 .subscribe();
         }
@@ -446,7 +365,7 @@
             const txt = document.getElementById('status-conexao-texto');
             if (online) {
                 dot.className = "w-2.5 h-2.5 bg-emerald-500 rounded-full shrink-0";
-                txt.textContent = text || "Online - Supabase Sincronizado";
+                txt.textContent = text || "Online - Sincronizado";
             } else {
                 dot.className = "w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse shrink-0";
                 txt.textContent = text || "Sincronizando...";
@@ -457,7 +376,6 @@
             if (!f) return 'C | 61 a 90';
             let fn = String(f).trim();
             if (fn === 'C | 61 a 90') return fn;
-            
             if (fn.includes('61 a 90')) return 'C | 61 a 90';
             if (fn.includes('91 a 120')) return 'D | 91 a 120';
             if (fn.includes('121 a 150')) return 'E | 121 a 150';
@@ -468,17 +386,14 @@
             if (fn.toLowerCase().includes('prev')) return 'Preventivo';
             if (fn.includes('1 a 30')) return 'A | 1 a 30';
             if (fn.includes('31 a 60')) return 'B | 31 a 60';
-            
             return TODAS_FAIXAS.includes(fn) ? fn : 'C | 61 a 90';
         }
 
-        // ================= GESTÃO DE ABAS =================
         async function criarNovaAba() {
             let nomeAba = prompt("Nome da nova aba (ex: Dia 15/08, Banco X):");
             if (nomeAba && nomeAba.trim() !== '') {
                 const newId = 'aba_' + Date.now();
                 const novaAba = { id: newId, nome: nomeAba.trim() };
-                
                 await db.from('abas').insert([novaAba]);
                 abaAtivaId = newId;
                 await carregarDadosSilencioso();
@@ -505,14 +420,10 @@
 
         async function excluirAba(id, event) {
             event.stopPropagation();
-            if(abas.length === 1) {
-                alert("Você não pode excluir a última aba.");
-                return;
-            }
+            if(abas.length === 1) return alert("Você não pode excluir a última aba.");
             if(confirm(`Tem certeza que deseja excluir esta aba e TODOS os clientes nela?`)) {
                 await db.from('clientes').delete().eq('aba_id', id);
                 await db.from('abas').delete().eq('id', id);
-                
                 if(abaAtivaId === id) {
                     const restante = abas.filter(a => a.id !== id);
                     abaAtivaId = restante[0].id;
@@ -524,35 +435,28 @@
         function renderizarAbas() {
             const container = document.getElementById('container-abas');
             container.innerHTML = '';
-            
             abas.forEach(aba => {
                 const isAtiva = aba.id === abaAtivaId;
                 const clientesNessaAba = clientes.filter(c => c.abaId === aba.id).length;
-                
                 let btn = document.createElement('div');
-                btn.className = `group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer border transition ${isAtiva ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`;
+                btn.className = `group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer border transition ${isAtiva ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`;
                 btn.onclick = () => selecionarAba(aba.id);
-                
                 btn.innerHTML = `
                     <span ondblclick="renomearAba('${aba.id}')">${aba.nome}</span>
-                    <span class="${isAtiva ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'} px-1.5 py-0.5 rounded-full text-[10px]">${clientesNessaAba}</span>
+                    <span class="${isAtiva ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-500'} px-1.5 py-0.5 rounded-md text-[10px]">${clientesNessaAba}</span>
                     ${abas.length > 1 ? `<button onclick="excluirAba('${aba.id}', event)" class="ml-1 opacity-0 group-hover:opacity-100 hover:text-rose-600 transition" title="Excluir Aba">✕</button>` : ''}
                 `;
                 container.appendChild(btn);
             });
         }
 
-        // ================= CONFIGURAÇÕES E TEMPLATE =================
         async function salvarTemplate() {
             templateMsg = document.getElementById('template-mensagem').value;
-            
             const { error } = await db.from('configuracoes').upsert({ chave: 'templateMsg', valor: templateMsg });
             if(error) console.error(error);
-
             alert("Template salvo com sucesso no banco de dados!");
         }
 
-        // ================= FUNÇÕES DE FILTRO E ORDENAÇÃO =================
         function ordenarClientes(lista) {
             const ordem = { 'Pendente': 1, 'Acionado': 2, 'Confirmado': 3, 'Pago': 4, 'Não vão pagar': 5 };
             return lista.sort((a, b) => {
@@ -568,15 +472,10 @@
             ['Todos', 'Pendente', 'Acionado', 'Confirmado', 'Pago', 'Não vão pagar'].forEach(s => {
                 let el = document.getElementById(`btn-status-${s}`);
                 if (el) {
-                    if (s === status) el.className = "px-3 py-1.5 text-xs font-medium rounded-lg transition bg-slate-800 text-white whitespace-nowrap";
-                    else el.className = "px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap";
+                    if (s === status) el.className = "px-3 py-1.5 text-xs font-medium rounded-lg transition bg-slate-800 text-white whitespace-nowrap shadow-sm";
+                    else el.className = "px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-200 whitespace-nowrap";
                 }
             });
-            renderizar();
-        }
-
-        function mudarFiltroFaixa(faixa) {
-            faixaAtiva = faixa;
             renderizar();
         }
 
@@ -596,7 +495,6 @@
             return estilos[faixa] || 'bg-slate-50 border-slate-200 text-slate-800';
         }
 
-        // ================= FUNÇÃO PRINCIPAL DE RENDERIZAÇÃO =================
         function renderizar() {
             const clientesDaAba = clientes.filter(c => c.abaId === abaAtivaId);
             const tbody = document.getElementById('tabela-clientes');
@@ -605,7 +503,6 @@
             let filtrados = clientesDaAba.filter(c => c.nome.toLowerCase().includes(termoBusca) || c.telefone.includes(termoBusca));
             if (statusAtivo !== 'Todos') filtrados = filtrados.filter(c => c.status === statusAtivo);
             if (faixaAtiva !== 'Todas') filtrados = filtrados.filter(c => c.faixaAtraso === faixaAtiva);
-            
             filtrados = ordenarClientes(filtrados);
 
             const valorTotal = clientesDaAba.reduce((acc, curr) => acc + curr.valor, 0);
@@ -616,9 +513,7 @@
             
             document.getElementById('card-valorpago').innerText = valorPago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             document.getElementById('card-valortotal').innerText = valorAberto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            
-            let numAcionados = clientesDaAba.filter(c => c.status !== 'Pendente').length;
-            document.getElementById('card-acionados').innerText = numAcionados + " / " + clientesDaAba.length;
+            document.getElementById('card-acionados').innerText = clientesDaAba.filter(c => c.status !== 'Pendente').length + " / " + clientesDaAba.length;
             document.getElementById('card-pagantes').innerText = clientesDaAba.filter(c => c.status === 'Pago').length;
 
             const pctPago = valorTotal > 0 ? (valorPago / valorTotal) * 100 : 0;
@@ -630,46 +525,37 @@
             document.getElementById('barra-confirmados').style.width = `${pctConf}%`;
             document.getElementById('barra-abertos').style.width = `${pctAberto}%`;
             document.getElementById('barra-recusados').style.width = `${pctRecusado}%`;
-
-            document.getElementById('texto-porcentagem').innerText = `${pctPago.toFixed(1)}% Pago (R$)`;
+            document.getElementById('texto-porcentagem').innerText = `${pctPago.toFixed(1)}% Pago`;
 
             document.getElementById('legenda-val-pago').innerText = valorPago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            document.getElementById('legenda-pct-pago').innerText = `${pctPago.toFixed(1)}%`;
-            
+            document.getElementById('legenda-pct-pago').innerText = `(${pctPago.toFixed(1)}%)`;
             document.getElementById('legenda-val-confirmado').innerText = valorConfirmado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            document.getElementById('legenda-pct-confirmado').innerText = `${pctConf.toFixed(1)}%`;
-            
+            document.getElementById('legenda-pct-confirmado').innerText = `(${pctConf.toFixed(1)}%)`;
             document.getElementById('legenda-val-aberto').innerText = valorAberto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            document.getElementById('legenda-pct-aberto').innerText = `${pctAberto.toFixed(1)}%`;
-            
+            document.getElementById('legenda-pct-aberto').innerText = `(${pctAberto.toFixed(1)}%)`;
             document.getElementById('legenda-val-recusado').innerText = valorRecusado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            document.getElementById('legenda-pct-recusado').innerText = `${pctRecusado.toFixed(1)}%`;
+            document.getElementById('legenda-pct-recusado').innerText = `(${pctRecusado.toFixed(1)}%)`;
 
+            // FAIXAS RESUMO (Em Aberto)
             const containerFaixas = document.getElementById('grid-faixas-resumo');
             if(containerFaixas) {
                 containerFaixas.innerHTML = '';
-                
                 TODAS_FAIXAS.forEach(f => {
-                    let clientesFaixa = clientesDaAba.filter(c => (c.faixaAtraso || 'C | 61 a 90') === f);
-                    let clientesEmAbertoFaixa = clientesFaixa.filter(c => ['Pendente', 'Acionado', 'Confirmado'].includes(c.status));
+                    let cFaixa = clientesDaAba.filter(c => (c.faixaAtraso || 'C | 61 a 90') === f);
+                    let cAberto = cFaixa.filter(c => ['Pendente', 'Acionado', 'Confirmado'].includes(c.status));
+                    let vFaixa = cAberto.reduce((a, b) => a + b.valor, 0);
+                    let pctFaixa = (valorAberto + valorConfirmado) > 0 ? ((vFaixa / (valorAberto + valorConfirmado)) * 100).toFixed(1) : 0;
                     
-                    let valorFaixa = clientesEmAbertoFaixa.reduce((acc, curr) => acc + curr.valor, 0);
-                    let qtdFaixa = clientesEmAbertoFaixa.length;
-
-                    if (clientesFaixa.length > 0 || ['C | 61 a 90', 'D | 91 a 120', 'E | 121 a 150', 'F | 151 a 180', 'H | 361 a 720'].includes(f)) {
-                        let totalAberto = (valorAberto + valorConfirmado);
-                        let pctFaixa = totalAberto > 0 ? ((valorFaixa / totalAberto) * 100).toFixed(1) : 0;
-                        let colorClasses = getEstiloFaixa(f);
-                        
+                    if (cFaixa.length > 0 || ['C | 61 a 90', 'D | 91 a 120'].includes(f)) {
                         containerFaixas.innerHTML += `
-                            <div class="p-3 rounded-xl border ${colorClasses} flex flex-col justify-between shadow-xs">
+                            <div class="p-2 rounded-xl border ${getEstiloFaixa(f)} flex flex-col justify-between">
                                 <div class="flex justify-between items-center mb-1">
-                                    <span class="text-[10px] uppercase tracking-wider font-bold">${f}</span>
-                                    <span class="text-[9px] bg-white text-slate-600 font-bold px-1.5 py-0.5 rounded border border-slate-200/60">${pctFaixa}%</span>
+                                    <span class="text-[9px] uppercase font-bold">${f}</span>
+                                    <span class="text-[8px] bg-white px-1 py-0.5 rounded border border-slate-200/60">${pctFaixa}%</span>
                                 </div>
                                 <div>
-                                    <p class="text-xs font-extrabold text-slate-800">${valorFaixa.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                                    <span class="text-[10px] opacity-80 font-medium">${qtdFaixa} clt(s) abertos</span>
+                                    <p class="text-xs font-black">${vFaixa.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                                    <span class="text-[9px] font-medium opacity-80">${cAberto.length} abertos</span>
                                 </div>
                             </div>
                         `;
@@ -677,43 +563,36 @@
                 });
             }
 
+            // FAIXAS PAGO (Modal)
             const containerFaixasPago = document.getElementById('grid-faixas-pago');
             if (containerFaixasPago) {
                 containerFaixasPago.innerHTML = '';
-
                 TODAS_FAIXAS.forEach(f => {
-                    let clientesFaixa = clientesDaAba.filter(c => (c.faixaAtraso || 'C | 61 a 90') === f);
-                    let clientesPagosFaixa = clientesFaixa.filter(c => c.status === 'Pago');
-                    
-                    let valorPagoFaixa = clientesPagosFaixa.reduce((acc, curr) => acc + curr.valor, 0);
-                    let valorTotalFaixa = clientesFaixa.reduce((acc, curr) => acc + curr.valor, 0);
-                    let qtdPagos = clientesPagosFaixa.length;
-                    let qtdTotal = clientesFaixa.length;
+                    let cFaixa = clientesDaAba.filter(c => (c.faixaAtraso || 'C | 61 a 90') === f);
+                    let cPago = cFaixa.filter(c => c.status === 'Pago');
+                    let vPago = cPago.reduce((a, b) => a + b.valor, 0);
+                    let vTotal = cFaixa.reduce((a, b) => a + b.valor, 0);
+                    let pct = vTotal > 0 ? ((vPago / vTotal) * 100).toFixed(1) : 0;
 
-                    if (qtdTotal > 0 || ['C | 61 a 90', 'D | 91 a 120', 'E | 121 a 150', 'F | 151 a 180', 'H | 361 a 720'].includes(f)) {
-                        let pctFaixa = valorTotalFaixa > 0 ? ((valorPagoFaixa / valorTotalFaixa) * 100).toFixed(1) : 0;
-                        let colorClasses = getEstiloFaixa(f);
-
+                    if (cFaixa.length > 0) {
                         containerFaixasPago.innerHTML += `
-                            <div class="p-3 rounded-xl border ${colorClasses} flex flex-col justify-between shadow-xs">
-                                <div class="flex justify-between items-center mb-1">
-                                    <span class="text-[10px] uppercase tracking-wider font-bold">${f}</span>
-                                    <span class="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded-full border border-emerald-200">${pctFaixa}%</span>
+                            <div class="p-3 rounded-xl border ${getEstiloFaixa(f)} flex flex-col shadow-sm">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-[10px] uppercase font-bold">${f}</span>
+                                    <span class="text-[9px] bg-white px-1.5 py-0.5 rounded-md font-bold">${pct}%</span>
                                 </div>
-                                <div>
-                                    <p class="text-xs font-extrabold text-emerald-700">${valorPagoFaixa.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                                    <span class="text-[10px] opacity-80 font-medium">${qtdPagos} de ${qtdTotal} pago(s)</span>
-                                </div>
+                                <p class="text-sm font-black mb-0.5">${vPago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                                <span class="text-[10px] font-medium opacity-80">${cPago.length} de ${cFaixa.length} pago(s)</span>
                             </div>
                         `;
                     }
                 });
             }
 
+            // TABELA
             tbody.innerHTML = '';
-            
             if (filtrados.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500 font-medium bg-slate-50/50">Nenhum cliente encontrado com os filtros atuais nesta aba.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500 font-medium">Nenhum cliente encontrado.</td></tr>`;
                 return;
             }
 
@@ -725,19 +604,17 @@
                 else if(c.status === 'Não vão pagar') badgeClass = 'bg-rose-50 text-rose-700 border-rose-200';
 
                 let row = `
-                    <tr class="hover:bg-slate-50/80 transition border-b border-slate-100 last:border-0">
-                        <td class="p-4 font-semibold text-slate-800">${c.nome}</td>
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="p-4 font-bold text-slate-700">${c.nome}</td>
                         <td class="p-4 font-mono text-slate-600">${c.telefone}</td>
-                        <td class="p-4 font-bold text-slate-800">${c.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                        
+                        <td class="p-4 font-black text-slate-800">${c.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                         <td class="p-4">
-                            <select onchange="atualizarFaixaCliente(${c.id}, this.value)" class="text-xs font-semibold px-2 py-1.5 rounded-lg border outline-none ${getEstiloFaixa(c.faixaAtraso)} bg-transparent">
+                            <select onchange="atualizarFaixaCliente(${c.id}, this.value)" class="text-xs font-bold px-2 py-1.5 rounded-lg border outline-none ${getEstiloFaixa(c.faixaAtraso)} bg-transparent">
                                 ${TODAS_FAIXAS.map(f => `<option value="${f}" ${c.faixaAtraso === f ? 'selected' : ''}>${f}</option>`).join('')}
                             </select>
                         </td>
-
                         <td class="p-4">
-                            <select onchange="atualizarStatusCliente(${c.id}, this.value)" class="text-xs font-semibold px-2 py-1.5 rounded-lg border ${badgeClass} outline-none cursor-pointer">
+                            <select onchange="atualizarStatusCliente(${c.id}, this.value)" class="text-xs font-bold px-2 py-1.5 rounded-lg border ${badgeClass} outline-none cursor-pointer">
                                 <option value="Pendente" ${c.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
                                 <option value="Acionado" ${c.status === 'Acionado' ? 'selected' : ''}>Acionado</option>
                                 <option value="Confirmado" ${c.status === 'Confirmado' ? 'selected' : ''}>✅ Confirmado</option>
@@ -745,19 +622,13 @@
                                 <option value="Não vão pagar" ${c.status === 'Não vão pagar' ? 'selected' : ''}>❌ Não vão pagar</option>
                             </select>
                         </td>
-                        
                         <td class="p-4 w-64">
-                            <input type="text" onchange="atualizarMotivoCliente(${c.id}, this.value)" value="${c.motivo}" placeholder="Adicione uma observação..." class="w-full text-xs p-2 bg-transparent border-b border-dashed border-slate-300 focus:border-emerald-500 outline-none transition placeholder-slate-400">
+                            <input type="text" onchange="atualizarMotivoCliente(${c.id}, this.value)" value="${c.motivo}" placeholder="Adicione nota..." class="w-full text-xs p-2 bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-500 outline-none transition placeholder-slate-400">
                         </td>
-                        
                         <td class="p-4 text-center">
                             <div class="flex items-center justify-center gap-2">
-                                <button onclick="acionarWhatsApp(${c.id})" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1.5 rounded-lg font-semibold transition active:scale-95 shadow-sm text-xs">
-                                    WhatsApp
-                                </button>
-                                <button onclick="removerCliente(${c.id})" class="text-slate-400 hover:text-rose-600 transition active:scale-90" title="Excluir">
-                                    🗑️
-                                </button>
+                                <button onclick="acionarWhatsApp(${c.id})" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1.5 rounded-lg font-bold transition shadow-sm text-xs">WA</button>
+                                <button onclick="removerCliente(${c.id})" class="text-slate-400 hover:text-rose-600 font-bold transition">🗑️</button>
                             </div>
                         </td>
                     </tr>
@@ -766,7 +637,6 @@
             });
         }
 
-        // ================= FUNÇÕES DE CRUD (SUPABASE) =================
         async function atualizarStatusCliente(id, status) {
             let cl = clientes.find(c => c.id === id);
             if (cl) {
@@ -801,21 +671,11 @@
             const faixa = document.getElementById('faixaAtraso').value;
 
             if (nome && telefone && valor) {
-                const novoCliente = {
-                    aba_id: abaAtivaId,
-                    nome: nome,
-                    telefone: telefone,
-                    valor: valor,
-                    faixa_atraso: faixa,
-                    status: 'Pendente',
-                    motivo: ''
-                };
-
+                const novoCliente = { aba_id: abaAtivaId, nome, telefone, valor, faixa_atraso: faixa, status: 'Pendente', motivo: '' };
                 const { data, error } = await db.from('clientes').insert([novoCliente]).select();
-                if(error) {
-                    console.error("Erro ao salvar:", error);
-                    alert("Erro ao salvar cliente.");
-                } else if(data && data.length > 0) {
+                if(error) return alert("Erro ao salvar cliente.");
+                
+                if(data && data.length > 0) {
                     clientes.push({
                         id: Number(data[0].id),
                         abaId: data[0].aba_id,
@@ -827,7 +687,6 @@
                         motivo: data[0].motivo
                     });
                 }
-                
                 fecharModal();
                 renderizar();
                 document.getElementById('form-cliente').reset();
@@ -847,17 +706,10 @@
                     const nomeStr = partes[0].trim().toUpperCase();
                     const valStr = partes[2].replace(',', '.').trim();
                     const numVal = parseFloat(valStr);
-                    
                     if(nomeStr && !isNaN(numVal)) {
-                        const faixaInput = partes[3] ? normalizarFaixa(partes[3]) : 'C | 61 a 90';
                         insercoes.push({
-                            aba_id: abaAtivaId,
-                            nome: nomeStr,
-                            telefone: partes[1].replace(/\D/g, ''),
-                            valor: numVal,
-                            faixa_atraso: faixaInput,
-                            status: 'Pendente',
-                            motivo: ''
+                            aba_id: abaAtivaId, nome: nomeStr, telefone: partes[1].replace(/\D/g, ''),
+                            valor: numVal, faixa_atraso: partes[3] ? normalizarFaixa(partes[3]) : 'C | 61 a 90', status: 'Pendente', motivo: ''
                         });
                     }
                 }
@@ -865,44 +717,30 @@
 
             if (insercoes.length > 0) {
                 atualizarStatusConexao(false, "Importando...");
-                const { error } = await db.from('clientes').insert(insercoes);
-                if(error) console.error("Erro no lote:", error);
-                
+                await db.from('clientes').insert(insercoes);
                 await carregarDadosSilencioso();
                 fecharModalLote();
-                alert(`${insercoes.length} clientes importados com sucesso para a aba atual!`);
+                alert(`${insercoes.length} clientes importados com sucesso!`);
             } else {
-                alert("Nenhum dado válido para importação. Use o formato: NOME;TELEFONE;VALOR;FAIXA");
+                alert("Nenhum dado válido. Use: NOME;TELEFONE;VALOR;FAIXA");
             }
         }
 
         async function processarBaixaEmMassa() {
             const texto = document.getElementById('texto-lote').value.trim();
             if(!texto) return;
-
             const linhas = texto.split('\n');
-            let telefonesParaBaixa = linhas.map(l => l.trim().replace(/\D/g, '')).filter(t => t.length > 0);
+            let telefones = linhas.map(l => l.trim().replace(/\D/g, '')).filter(t => t.length > 0);
             
-            if (telefonesParaBaixa.length > 0) {
+            if (telefones.length > 0) {
                 atualizarStatusConexao(false, "Baixando...");
-                const idsParaAtualizar = clientes
-                    .filter(c => c.abaId === abaAtivaId && telefonesParaBaixa.includes(c.telefone))
-                    .map(c => c.id);
-
-                if(idsParaAtualizar.length > 0) {
-                    const { error } = await db
-                        .from('clientes')
-                        .update({ status: 'Acionado' })
-                        .in('id', idsParaAtualizar);
-                        
-                    if(error) console.error("Erro na baixa em massa:", error);
-                    
+                const ids = clientes.filter(c => c.abaId === abaAtivaId && telefones.includes(c.telefone)).map(c => c.id);
+                if(ids.length > 0) {
+                    await db.from('clientes').update({ status: 'Acionado' }).in('id', ids);
                     await carregarDadosSilencioso();
-                    alert(`Status de ${idsParaAtualizar.length} clientes atualizado para "Acionado" nesta aba!`);
+                    alert(`Status de ${ids.length} clientes atualizado para "Acionado"!`);
                     fecharModalLote();
-                } else {
-                    alert("Nenhum telefone encontrado na ABA ATUAL para baixar.");
-                }
+                } else alert("Nenhum telefone encontrado na ABA ATUAL.");
             }
         }
 
@@ -910,26 +748,18 @@
             let c = clientes.find(c => c.id === id);
             if(c) {
                 let v = c.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-                
-                let msg = templateMsg
-                    .replace(/{nome}/g, c.nome)
-                    .replace(/{valor}/g, v)
-                    .replace(/{faixa}/g, c.faixaAtraso);
-                
-                msg = encodeURIComponent(msg);
-                
+                let msg = encodeURIComponent(templateMsg.replace(/{nome}/g, c.nome).replace(/{valor}/g, v).replace(/{faixa}/g, c.faixaAtraso));
                 if (c.status === 'Pendente') {
                     c.status = 'Acionado';
                     await db.from('clientes').update({ status: 'Acionado' }).eq('id', id);
                     renderizar();
                 }
-                
                 window.open(`https://wa.me/${c.telefone}?text=${msg}`, '_blank');
             }
         }
 
         async function removerCliente(id) {
-            if (confirm("Tem certeza que deseja excluir este cliente?")) {
+            if (confirm("Excluir cliente?")) {
                 await db.from('clientes').delete().eq('id', id);
                 clientes = clientes.filter(c => c.id !== id);
                 renderizar();
@@ -937,10 +767,10 @@
         }
 
         async function excluirTodos() {
-            let countAba = clientes.filter(c => c.abaId === abaAtivaId).length;
-            if (countAba === 0) return alert("Esta aba já está limpa.");
-            if (confirm(`Tem certeza que deseja apagar TODOS os ${countAba} clientes DESTA ABA? Esta ação não pode ser desfeita.`)) {
-                atualizarStatusConexao(false, "Limpando Aba...");
+            let count = clientes.filter(c => c.abaId === abaAtivaId).length;
+            if (count === 0) return alert("Aba vazia.");
+            if (confirm(`Apagar TODOS os ${count} clientes DESTA ABA?`)) {
+                atualizarStatusConexao(false, "Limpando...");
                 await db.from('clientes').delete().eq('aba_id', abaAtivaId);
                 clientes = clientes.filter(c => c.abaId !== abaAtivaId);
                 atualizarStatusConexao(true);
@@ -950,35 +780,29 @@
 
         function exportarExcel() {
             let csv = "Nome,Telefone,Valor,Faixa de Atraso,Status,Motivo\n";
-            let filtrados = clientes.filter(c => c.abaId === abaAtivaId);
-            filtrados.forEach(c => {
+            clientes.filter(c => c.abaId === abaAtivaId).forEach(c => {
                 let v = c.valor.toFixed(2).replace('.', ',');
                 csv += `"${c.nome}","${c.telefone}","${v}","${c.faixaAtraso}","${c.status}","${c.motivo}"\n`;
             });
-
             let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             let link = document.createElement("a");
-            let url = URL.createObjectURL(blob);
-            let nomeAbaAtual = abas.find(a => a.id === abaAtivaId)?.nome || 'export';
-            link.setAttribute("href", url);
-            link.setAttribute("download", `Clientes_${nomeAbaAtual.replace(/[\/\\?%*:|"<>]/g, '-')}.csv`);
+            let nome = abas.find(a => a.id === abaAtivaId)?.nome || 'export';
+            link.href = URL.createObjectURL(blob);
+            link.download = `Clientes_${nome.replace(/[\/\\?%*:|"<>]/g, '-')}.csv`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
 
+        // Funções Modais
         function abrirModal() { document.getElementById('modal').classList.remove('hidden'); }
         function fecharModal() { document.getElementById('modal').classList.add('hidden'); }
-        
-        function abrirModalLote() { 
-            document.getElementById('texto-lote').value = '';
-            document.getElementById('modal-lote').classList.remove('hidden'); 
-        }
+        function abrirModalLote() { document.getElementById('texto-lote').value = ''; document.getElementById('modal-lote').classList.remove('hidden'); }
         function fecharModalLote() { document.getElementById('modal-lote').classList.add('hidden'); }
+        function abrirModalFaixasPago() { document.getElementById('modal-faixas-pago').classList.remove('hidden'); }
+        function fecharModalFaixasPago() { document.getElementById('modal-faixas-pago').classList.add('hidden'); }
 
-        window.onload = () => {
-            carregarDados();
-        };
+        window.onload = carregarDados;
     </script>
 </body>
 </html>
