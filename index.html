@@ -3,174 +3,224 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Preventivo | Gestão de Cobrança</title>
+    <title>CRC WhatsApp | Gestão Preventiva e Atraso</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans min-h-screen p-4 md:p-8">
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col md:flex-row">
 
-    <div class="max-w-7xl mx-auto space-y-6">
+    <!-- SIDEBAR ESQUERDA -->
+    <aside class="w-full md:w-80 bg-slate-900 text-slate-100 p-6 flex flex-col justify-between shrink-0 shadow-lg">
+        <div class="space-y-6">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-md">💬</div>
+                <div>
+                    <h1 class="font-black text-lg tracking-wide text-white">CRC WhatsApp</h1>
+                    <p class="text-xs text-slate-400 font-medium">Gestão Preventiva e Atraso</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/60 space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Template da Mensagem</span>
+                    <span class="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded font-semibold">Variáveis</span>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                    Tags: <code class="text-indigo-400 bg-slate-900 px-1 py-0.5 rounded">{nome}</code>, <code class="text-indigo-400 bg-slate-900 px-1 py-0.5 rounded">{valor}</code>, <code class="text-indigo-400 bg-slate-900 px-1 py-0.5 rounded">{faixa}</code>
+                </p>
+                <textarea id="template-mensagem" class="w-full h-28 bg-slate-900 text-slate-200 text-xs p-3 rounded-xl border border-slate-700 outline-none focus:border-indigo-500 transition resize-none"></textarea>
+                <button onclick="salvarTemplate()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-md flex items-center justify-center gap-1.5">
+                    💾 Salvar Template
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-slate-800">
+            <div class="bg-slate-800/40 p-3 rounded-xl border border-slate-700/40 flex items-center gap-3">
+                <div id="status-conexao-dot" class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse shrink-0"></div>
+                <div>
+                    <p class="text-xs font-bold text-slate-200">Nuvem Conectada</p>
+                    <p id="status-conexao-texto" class="text-[10px] text-slate-400">Sincronizado em Tempo Real</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="flex-1 p-6 md:p-8 space-y-6 overflow-x-hidden">
         
-        <!-- ================= CABEÇALHO ================= -->
-        <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <!-- CABEÇALHO -->
+        <header class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80">
             <div>
-                <h1 class="text-2xl font-black text-slate-800">Sistema Preventivo</h1>
-                <p class="text-sm text-slate-500 font-medium mt-1">Gestão de contatos e acordos</p>
+                <h1 class="text-xl font-black text-slate-800">Painel Geral de Cobrança</h1>
+                <p class="text-xs text-slate-500 font-medium mt-0.5">Monitore e acione suas listas organizadas por abas</p>
             </div>
             
-            <div class="flex items-center gap-4">
-                <div class="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200">
-                    <div id="status-conexao-dot" class="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse shrink-0"></div>
-                    <span id="status-conexao-texto" class="text-xs font-semibold text-slate-600">Conectando...</span>
-                </div>
+            <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+                <button onclick="exportarExcel()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs">
+                    📊 Exportar Excel
+                </button>
+                <button onclick="abrirModalFaixas()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs">
+                    📈 Faixas (Aberto / Pago)
+                </button>
+                <button onclick="excluirTodos()" class="bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs">
+                    🗑️ Limpar Aba
+                </button>
+                <button onclick="abrirModalLote()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                    📁 Importar Lote
+                </button>
+                <button onclick="abrirModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                    + Novo Cliente
+                </button>
             </div>
         </header>
 
-        <!-- ================= GESTÃO DE ABAS ================= -->
-        <div class="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-hide">
-            <div id="container-abas" class="flex gap-2">
-                <!-- Abas renderizadas aqui -->
-            </div>
-            <button onclick="criarNovaAba()" class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition shadow-sm">
+        <!-- ABAS -->
+        <div class="flex items-center gap-3 overflow-x-auto pb-1">
+            <div id="container-abas" class="flex gap-2"></div>
+            <button onclick="criarNovaAba()" class="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition shadow-xs">
                 + Nova Aba
             </button>
         </div>
 
-        <!-- ================= CARDS DE RESUMO ================= -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                <p class="text-xs text-slate-500 font-bold uppercase tracking-wide">Valor em Aberto</p>
-                <h2 id="card-valortotal" class="text-2xl font-black text-slate-800 mt-1">R$ 0,00</h2>
-            </div>
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 border-b-4 border-b-emerald-400">
-                <p class="text-xs text-slate-500 font-bold uppercase tracking-wide">Valor Recuperado (Pago)</p>
-                <h2 id="card-valorpago" class="text-2xl font-black text-emerald-600 mt-1">R$ 0,00</h2>
-            </div>
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                <p class="text-xs text-slate-500 font-bold uppercase tracking-wide">Clientes Acionados</p>
-                <h2 id="card-acionados" class="text-2xl font-black text-blue-600 mt-1">0 / 0</h2>
-            </div>
-            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-                <p class="text-xs text-slate-500 font-bold uppercase tracking-wide">Qtd. Pagantes</p>
-                <h2 id="card-pagantes" class="text-2xl font-black text-slate-800 mt-1">0</h2>
-            </div>
-        </div>
-
-        <!-- ================= BARRA DE PROGRESSO E LEGENDA ================= -->
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-            <div class="flex justify-between items-end mb-2">
-                <span class="text-sm font-bold text-slate-700">Progresso de Recuperação</span>
-                <span id="texto-porcentagem" class="text-xs font-black bg-emerald-100 text-emerald-800 px-2 py-1 rounded-md">0.0% Pago (R$)</span>
-            </div>
-            
-            <div class="w-full h-3 bg-slate-100 rounded-full flex overflow-hidden">
-                <div id="barra-pagos" class="bg-emerald-500 h-full transition-all duration-500" style="width: 0%"></div>
-                <div id="barra-confirmados" class="bg-teal-400 h-full transition-all duration-500" style="width: 0%"></div>
-                <div id="barra-abertos" class="bg-slate-300 h-full transition-all duration-500" style="width: 100%"></div>
-                <div id="barra-recusados" class="bg-rose-400 h-full transition-all duration-500" style="width: 0%"></div>
-            </div>
-            
-            <div class="flex flex-wrap gap-4 mt-4 text-xs">
-                <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-sm bg-emerald-500"></div><span class="font-semibold text-slate-600">Pago:</span> <span id="legenda-val-pago" class="font-bold text-slate-800">R$ 0,00</span> <span id="legenda-pct-pago" class="text-slate-400">(0%)</span></div>
-                <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-sm bg-teal-400"></div><span class="font-semibold text-slate-600">Confirmado:</span> <span id="legenda-val-confirmado" class="font-bold text-slate-800">R$ 0,00</span> <span id="legenda-pct-confirmado" class="text-slate-400">(0%)</span></div>
-                <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-sm bg-slate-300"></div><span class="font-semibold text-slate-600">Aberto:</span> <span id="legenda-val-aberto" class="font-bold text-slate-800">R$ 0,00</span> <span id="legenda-pct-aberto" class="text-slate-400">(100%)</span></div>
-                <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-sm bg-rose-400"></div><span class="font-semibold text-slate-600">Recusado:</span> <span id="legenda-val-recusado" class="font-bold text-slate-800">R$ 0,00</span> <span id="legenda-pct-recusado" class="text-slate-400">(0%)</span></div>
-            </div>
-        </div>
-
-        <!-- ================= RESUMO DE FAIXAS (EM ABERTO) ================= -->
-        <div>
-            <h3 class="text-sm font-bold text-slate-700 mb-3">Títulos em Aberto por Faixa</h3>
-            <div id="grid-faixas-resumo" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-10 gap-2">
-                <!-- Preenchido pelo JS -->
-            </div>
-        </div>
-
-        <!-- ================= TOOLBAR (FILTROS E AÇÕES) ================= -->
-        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-            <div class="flex flex-wrap items-center gap-2">
-                <input type="text" id="filtro-busca" onkeyup="renderizar()" placeholder="🔍 Buscar nome ou telefone..." class="px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-indigo-500 transition min-w-[250px]">
-                
-                <div class="flex bg-slate-50 p-1 rounded-lg border border-slate-200 overflow-x-auto">
-                    <button id="btn-status-Todos" onclick="mudarFiltroStatus('Todos')" class="px-3 py-1.5 text-xs font-medium rounded-lg transition bg-slate-800 text-white whitespace-nowrap">Todos</button>
-                    <button id="btn-status-Pendente" onclick="mudarFiltroStatus('Pendente')" class="px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">Pendente</button>
-                    <button id="btn-status-Acionado" onclick="mudarFiltroStatus('Acionado')" class="px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">Acionado</button>
-                    <button id="btn-status-Confirmado" onclick="mudarFiltroStatus('Confirmado')" class="px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">Confirmado</button>
-                    <button id="btn-status-Pago" onclick="mudarFiltroStatus('Pago')" class="px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">Pago</button>
-                    <button id="btn-status-Não vão pagar" onclick="mudarFiltroStatus('Não vão pagar')" class="px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-100 whitespace-nowrap">Não vão pagar</button>
+        <!-- CARDS DE RESUMO -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between">
+                <div class="flex justify-between items-start">
+                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Clientes Acionados</p>
+                    <span class="text-sm bg-blue-50 p-1.5 rounded-xl">📞</span>
+                </div>
+                <div class="mt-3">
+                    <h2 id="card-acionados" class="text-2xl font-black text-slate-800">0 / 0</h2>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Total acionado nesta aba</p>
                 </div>
             </div>
 
-            <div class="flex items-center gap-2 w-full lg:w-auto">
-                <button onclick="abrirModalFaixasPago()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold px-3 py-2 rounded-lg transition flex items-center gap-1.5">
-                    📊 Faixas Pagas
-                </button>
-                <button onclick="abrirModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition flex items-center gap-1.5 shadow-sm">
-                    + Cliente
-                </button>
-                <button onclick="abrirModalLote()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg transition flex items-center gap-1.5 shadow-sm">
-                    📥 Lote
-                </button>
-                <button onclick="exportarExcel()" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition flex items-center gap-1.5 shadow-sm" title="Exportar CSV">
-                    📊 Excel
-                </button>
-                <button onclick="excluirTodos()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 border border-rose-200 text-xs font-bold px-3 py-2 rounded-lg transition" title="Limpar Aba">
-                    🗑️ Limpar
-                </button>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between">
+                <div class="flex justify-between items-start">
+                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Clientes Pagantes</p>
+                    <span class="text-sm bg-emerald-50 p-1.5 rounded-xl">✅</span>
+                </div>
+                <div class="mt-3">
+                    <h2 id="card-pagantes" class="text-2xl font-black text-emerald-600">0</h2>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Acordos liquidados</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between">
+                <div class="flex justify-between items-start">
+                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Valor Recuperado</p>
+                    <span class="text-sm bg-amber-50 p-1.5 rounded-xl">💰</span>
+                </div>
+                <div class="mt-3">
+                    <h2 id="card-valorpago" class="text-2xl font-black text-emerald-600">R$ 0,00</h2>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Recuperado nesta aba</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between">
+                <div class="flex justify-between items-start">
+                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Valor em Aberto</p>
+                    <span class="text-sm bg-indigo-50 p-1.5 rounded-xl">⏳</span>
+                </div>
+                <div class="mt-3">
+                    <h2 id="card-valortotal" class="text-2xl font-black text-slate-800">R$ 0,00</h2>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Pendente + Acionado</p>
+                </div>
             </div>
         </div>
 
-        <!-- ================= TABELA DE CLIENTES ================= -->
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <!-- BARRA DE PROGRESSO / STATUS GERAL -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
+            <div class="flex justify-between items-center">
+                <span class="text-xs font-black text-slate-700 uppercase tracking-wider">Status Geral da Carteira da Aba (Distribuição R$)</span>
+                <span id="texto-porcentagem" class="text-xs font-black bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-lg">0.0% Recuperado</span>
+            </div>
+            
+            <div class="w-full h-3.5 bg-slate-100 rounded-full flex overflow-hidden shadow-inner">
+                <div id="barra-pagos" class="bg-emerald-500 h-full transition-all duration-500" style="width: 0%"></div>
+                <div id="barra-confirmados" class="bg-teal-400 h-full transition-all duration-500" style="width: 0%"></div>
+                <div id="barra-abertos" class="bg-amber-400 h-full transition-all duration-500" style="width: 100%"></div>
+                <div id="barra-recusados" class="bg-rose-400 h-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+            
+            <div class="flex flex-wrap gap-6 text-xs pt-1">
+                <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-emerald-500"></div><span class="font-semibold text-slate-600">Pagos:</span> <span id="legenda-val-pago" class="font-bold text-slate-800">R$ 0,00</span> <span id="legenda-pct-pago" class="text-slate-400">(0%)</span></div>
+                <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-teal-400"></div><span class="font-semibold text-slate-600">Confirmados:</span> <span id="legenda-val-confirmado" class="font-bold text-slate-800">R$ 0,00</span> <span id="legenda-pct-confirmado" class="text-slate-400">(0%)</span></div>
+                <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-amber-400"></div><span class="font-semibold text-slate-600">Em Aberto:</span> <span id="legenda-val-aberto" class="font-bold text-slate-800">R$ 0,00</span> <span id="legenda-pct-aberto" class="text-slate-400">(100%)</span></div>
+                <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-rose-400"></div><span class="font-semibold text-slate-600">Não vão pagar:</span> <span id="legenda-val-recusado" class="font-bold text-slate-800">R$ 0,00</span> <span id="legenda-pct-recusado" class="text-slate-400">(0%)</span></div>
+            </div>
+        </div>
+
+        <!-- FILTROS E BUSCA DA TABELA -->
+        <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80">
+            <input type="text" id="filtro-busca" onkeyup="renderizar()" placeholder="🔍 Buscar nome ou telefone..." class="px-4 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:border-indigo-500 transition w-full md:w-80 bg-slate-50">
+            
+            <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto">
+                <button id="btn-status-Todos" onclick="mudarFiltroStatus('Todos')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition bg-slate-800 text-white whitespace-nowrap shadow-xs">Todos</button>
+                <button id="btn-status-Pendente" onclick="mudarFiltroStatus('Pendente')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-200 whitespace-nowrap">Pendente</button>
+                <button id="btn-status-Acionado" onclick="mudarFiltroStatus('Acionado')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-200 whitespace-nowrap">Acionado</button>
+                <button id="btn-status-Confirmado" onclick="mudarFiltroStatus('Confirmado')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-200 whitespace-nowrap">Confirmado</button>
+                <button id="btn-status-Pago" onclick="mudarFiltroStatus('Pago')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-200 whitespace-nowrap">Pago</button>
+                <button id="btn-status-Não vão pagar" onclick="mudarFiltroStatus('Não vão pagar')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-200 whitespace-nowrap">Não vão pagar</button>
+            </div>
+        </div>
+
+        <!-- TABELA DE CLIENTES -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
             <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm whitespace-nowrap">
-                    <thead class="bg-slate-50 border-b border-slate-200 text-slate-600">
+                <table class="w-full text-left text-xs whitespace-nowrap">
+                    <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider">
                         <tr>
-                            <th class="p-4 font-bold">NOME DO CLIENTE</th>
-                            <th class="p-4 font-bold">TELEFONE</th>
-                            <th class="p-4 font-bold">VALOR (R$)</th>
-                            <th class="p-4 font-bold">FAIXA DE ATRASO</th>
-                            <th class="p-4 font-bold">STATUS</th>
-                            <th class="p-4 font-bold">OBSERVAÇÕES (MOTIVO)</th>
-                            <th class="p-4 font-bold text-center">AÇÕES</th>
+                            <th class="p-4 font-bold">Nome do Cliente</th>
+                            <th class="p-4 font-bold">Telefone</th>
+                            <th class="p-4 font-bold">Valor (R$)</th>
+                            <th class="p-4 font-bold">Faixa de Atraso</th>
+                            <th class="p-4 font-bold">Status</th>
+                            <th class="p-4 font-bold">Observações (Motivo)</th>
+                            <th class="p-4 font-bold text-center">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="tabela-clientes" class="divide-y divide-slate-100">
-                        <!-- Clientes inseridos via JS -->
+                        <!-- Preenchido via JS -->
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- ================= CONFIGURAÇÃO DE MENSAGEM ================= -->
-        <div class="bg-slate-100 p-6 rounded-2xl border border-slate-200 mt-8">
-            <h3 class="text-sm font-bold text-slate-700 mb-2">Template de Mensagem (WhatsApp)</h3>
-            <p class="text-xs text-slate-500 mb-3">Use <span class="font-bold text-indigo-600">{nome}</span>, <span class="font-bold text-indigo-600">{valor}</span> e <span class="font-bold text-indigo-600">{faixa}</span> para substituir automaticamente.</p>
-            <textarea id="template-mensagem" class="w-full p-3 text-sm rounded-lg border border-slate-300 outline-none focus:border-indigo-500 mb-3 h-20 bg-white"></textarea>
-            <button onclick="salvarTemplate()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-lg transition">Salvar Template no Banco</button>
-        </div>
+    </main>
 
-    </div>
-
-    <!-- ================= MODAL: FAIXAS PAGAS ================= -->
-    <div id="modal-faixas-pago" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
-        <div class="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-6">
+    <!-- ================= MODAL: FAIXAS (ABERTO E PAGO) ================= -->
+    <div id="modal-faixas" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-5xl w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-6">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4">
                 <div>
-                    <h3 class="text-lg font-black text-slate-800">📊 Resumo de Pagamentos por Faixa</h3>
-                    <p class="text-xs text-slate-500 font-medium">Valores e percentuais de recuperação divididos por faixa de atraso nesta aba.</p>
+                    <h3 class="text-base font-black text-slate-800">📊 Distribuição por Faixa de Atraso (Aba Atual)</h3>
+                    <p class="text-xs text-slate-500 font-medium">Análise detalhada do saldo em aberto e valores pagos divididos por faixa.</p>
                 </div>
-                <button onclick="fecharModalFaixasPago()" class="text-slate-400 hover:text-slate-600 font-bold text-xl p-2 transition">✕</button>
-            </div>
-            
-            <div id="grid-faixas-pago" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                <!-- Preenchido pelo JS -->
+                <button onclick="fecharModalFaixas()" class="text-slate-400 hover:text-slate-600 font-bold text-xl p-1">✕</button>
             </div>
 
-            <div class="mt-6 flex justify-end">
-                <button onclick="fecharModalFaixasPago()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-5 py-2.5 rounded-lg transition">
+            <!-- Seção 1: Saldo em Aberto -->
+            <div>
+                <h4 class="text-xs font-black uppercase tracking-wider text-slate-600 mb-3">⏳ Saldo em Aberto por Faixa</h4>
+                <div id="grid-faixas-aberto" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    <!-- Preenchido pelo JS -->
+                </div>
+            </div>
+
+            <!-- Seção 2: Valor Pago -->
+            <div class="pt-2 border-t border-slate-100">
+                <h4 class="text-xs font-black uppercase tracking-wider text-emerald-700 mb-3">💰 Valor Pago / Recuperado por Faixa</h4>
+                <div id="grid-faixas-pago" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    <!-- Preenchido pelo JS -->
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end pt-4 border-t border-slate-100">
+                <button onclick="fecharModalFaixas()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-5 py-2.5 rounded-xl transition">
                     Fechar
                 </button>
             </div>
@@ -178,28 +228,25 @@
     </div>
 
     <!-- ================= MODAL: NOVO CLIENTE ================= -->
-    <div id="modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+    <div id="modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
-            <h2 class="text-lg font-black text-slate-800 mb-4">Adicionar Novo Cliente</h2>
+            <h2 class="text-base font-black text-slate-800 mb-4">Adicionar Novo Cliente</h2>
             <form id="form-cliente" onsubmit="salvarCliente(event)" class="space-y-4">
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1">Nome Completo</label>
-                    <input type="text" id="nome" required class="w-full p-2.5 text-sm border border-slate-300 rounded-lg outline-none focus:border-indigo-500 bg-slate-50">
+                    <input type="text" id="nome" required class="w-full p-2.5 text-xs border border-slate-300 rounded-xl outline-none focus:border-indigo-500 bg-slate-50">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1">Telefone (Somente números)</label>
-                    <input type="text" id="telefone" required class="w-full p-2.5 text-sm border border-slate-300 rounded-lg outline-none focus:border-indigo-500 bg-slate-50">
+                    <input type="text" id="telefone" required class="w-full p-2.5 text-xs border border-slate-300 rounded-xl outline-none focus:border-indigo-500 bg-slate-50">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1">Valor Original (R$)</label>
-                    <input type="number" id="valor" step="0.01" required class="w-full p-2.5 text-sm border border-slate-300 rounded-lg outline-none focus:border-indigo-500 bg-slate-50">
+                    <input type="number" id="valor" step="0.01" required class="w-full p-2.5 text-xs border border-slate-300 rounded-xl outline-none focus:border-indigo-500 bg-slate-50">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1">Faixa de Atraso Inicial</label>
-                    <select id="faixaAtraso" class="w-full p-2.5 text-sm border border-slate-300 rounded-lg outline-none focus:border-indigo-500 bg-slate-50">
-                        <option value="Preventivo">Preventivo</option>
-                        <option value="A | 1 a 30">A | 1 a 30</option>
-                        <option value="B | 31 a 60">B | 31 a 60</option>
+                    <select id="faixaAtraso" class="w-full p-2.5 text-xs border border-slate-300 rounded-xl outline-none focus:border-indigo-500 bg-slate-50">
                         <option value="C | 61 a 90" selected>C | 61 a 90</option>
                         <option value="D | 91 a 120">D | 91 a 120</option>
                         <option value="E | 121 a 150">E | 121 a 150</option>
@@ -210,31 +257,31 @@
                     </select>
                 </div>
                 <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
-                    <button type="button" onclick="fecharModal()" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition shadow-sm">Salvar Cliente</button>
+                    <button type="button" onclick="fecharModal()" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition shadow-sm">Salvar Cliente</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- ================= MODAL: IMPORTAÇÃO E LOTE ================= -->
-    <div id="modal-lote" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+    <!-- ================= MODAL: LOTE ================= -->
+    <div id="modal-lote" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100">
             <div class="flex justify-between items-start mb-4">
                 <div>
-                    <h2 class="text-lg font-black text-slate-800">Ações em Lote</h2>
-                    <p class="text-xs text-slate-500 mt-1">Cole os dados no formato: <span class="font-mono bg-slate-100 px-1 rounded text-slate-700">NOME;TELEFONE;VALOR;FAIXA</span></p>
+                    <h2 class="text-base font-black text-slate-800">Ações em Lote</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Cole os dados no formato: <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">NOME;TELEFONE;VALOR;FAIXA</span></p>
                 </div>
                 <button onclick="fecharModalLote()" class="text-slate-400 hover:text-slate-600 text-lg font-bold p-1">✕</button>
             </div>
             
-            <textarea id="texto-lote" class="w-full h-64 p-3 text-xs font-mono border border-slate-300 rounded-lg outline-none focus:border-indigo-500 bg-slate-50 whitespace-pre overflow-auto" placeholder="MARIA DA SILVA;11999999999;150.50;C | 61 a 90&#10;JOAO SOUZA;11988888888;300.00;Preventivo"></textarea>
+            <textarea id="texto-lote" class="w-full h-64 p-3 text-xs font-mono border border-slate-300 rounded-xl outline-none focus:border-indigo-500 bg-slate-50 resize-none" placeholder="MARIA DA SILVA;11999999999;150.50;C | 61 a 90&#10;JOAO SOUZA;11988888888;300.00;D | 91 a 120"></textarea>
             
-            <div class="flex justify-end gap-3 mt-4">
-                <button onclick="processarBaixaEmMassa()" class="px-4 py-2.5 text-xs font-bold bg-blue-100 hover:bg-blue-200 text-blue-800 rounded-lg transition border border-blue-200" title="Altera o status para Acionado com base nos telefones colados">
+            <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
+                <button onclick="processarBaixaEmMassa()" class="px-4 py-2.5 text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl transition border border-blue-200">
                     ✔️ Baixa em Massa (Acionado)
                 </button>
-                <button onclick="processarImportacaoLote()" class="px-4 py-2.5 text-xs font-bold bg-slate-800 hover:bg-slate-900 text-white rounded-lg transition shadow-sm">
+                <button onclick="processarImportacaoLote()" class="px-4 py-2.5 text-xs font-bold bg-slate-800 hover:bg-slate-900 text-white rounded-xl transition shadow-sm">
                     📥 Importar Clientes
                 </button>
             </div>
@@ -243,26 +290,19 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        // CONFIGURAÇÕES DO SUPABASE
         const SUPABASE_URL = "https://kgidkxaqvgcqiqwqxvut.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtnaWRreGFxdmdjcWlxd3F4dnV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0ODc0MzAsImV4cCI6MjA5ODA2MzQzMH0.DLQoO8_q_QeW-a084ZDCFRc0OIeuEDaYpkUg2tSCB0E";
 
-        // Variavel de conexão corrigida
         const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let abas = [];
         let abaAtivaId = 'aba_padrao';
-
         let clientes = [];
         let statusAtivo = 'Todos';
-        let faixaAtiva = 'Todas';
         let templateMsg = "Olá {nome}! Lembramos do seu título no valor de {valor} na faixa {faixa}. Entre em contato conosco para regularizar seu débito e evitar demais encargos!";
         let debounceTimer = null;
 
         const TODAS_FAIXAS = [
-            'Preventivo',
-            'A | 1 a 30',
-            'B | 31 a 60',
             'C | 61 a 90',
             'D | 91 a 120',
             'E | 121 a 150',
@@ -273,23 +313,21 @@
         ];
 
         async function carregarDados() {
-            atualizarStatusConexao(false);
+            atualizarStatusConexao(false, "Sincronizando...");
 
             try {
-                // 1. Buscar Abas
                 const { data: dataAbas, error: errAbas } = await db.from('abas').select('*').order('created_at', { ascending: true });
                 if (errAbas) throw errAbas;
 
                 if (dataAbas && dataAbas.length > 0) {
                     abas = dataAbas;
                 } else {
-                    await db.from('abas').insert([{ id: 'aba_padrao', nome: 'Preventivo 11/08' }]);
-                    abas = [{ id: 'aba_padrao', nome: 'Preventivo 11/08' }];
+                    await db.from('abas').insert([{ id: 'aba_padrao', nome: 'Carteira 11/08' }]);
+                    abas = [{ id: 'aba_padrao', nome: 'Carteira 11/08' }];
                 }
 
                 if (!abas.some(a => a.id === abaAtivaId)) abaAtivaId = abas[0].id;
 
-                // 2. Buscar Clientes
                 const { data: dataClientes, error: errClientes } = await db.from('clientes').select('*');
                 if (errClientes) throw errClientes;
 
@@ -304,25 +342,24 @@
                     motivo: c.motivo || ''
                 }));
 
-                // 3. Buscar Configurações (Com proteção Try/Catch)
                 try {
                     const { data: dataConfig, error: errConfig } = await db.from('configuracoes').select('*').eq('chave', 'templateMsg').single();
                     if (!errConfig && dataConfig) {
                         templateMsg = dataConfig.valor;
                     }
                 } catch (e) {
-                    console.warn("Tabela de configurações não acessível, usando template padrão.");
+                    console.warn("Configurações não carregadas do banco.");
                 }
                 
                 document.getElementById('template-mensagem').value = templateMsg;
 
-                atualizarStatusConexao(true);
+                atualizarStatusConexao(true, "Sincronizado em Tempo Real");
                 renderizarAbas();
                 renderizar();
                 assinarRealtime();
                 
             } catch (error) {
-                console.error("Erro ao carregar dados:", error);
+                console.error("Erro ao carregar:", error);
                 atualizarStatusConexao(false, "Erro de Conexão");
             }
         }
@@ -331,7 +368,7 @@
             db.channel('custom-all-channel')
                 .on('postgres_changes', { event: '*', schema: 'public' }, payload => {
                     clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(() => { carregarDadosSilencioso(); }, 800);
+                    debounceTimer = setTimeout(() => { carregarDadosSilencioso(); }, 600);
                 })
                 .subscribe();
         }
@@ -364,11 +401,11 @@
             const dot = document.getElementById('status-conexao-dot');
             const txt = document.getElementById('status-conexao-texto');
             if (online) {
-                dot.className = "w-2.5 h-2.5 bg-emerald-500 rounded-full shrink-0";
-                txt.textContent = text || "Online - Sincronizado";
+                dot.className = "w-3 h-3 bg-emerald-500 rounded-full shrink-0";
+                txt.textContent = text;
             } else {
-                dot.className = "w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse shrink-0";
-                txt.textContent = text || "Sincronizando...";
+                dot.className = "w-3 h-3 bg-amber-500 rounded-full animate-pulse shrink-0";
+                txt.textContent = text;
             }
         }
 
@@ -383,18 +420,14 @@
             if (fn.includes('181 a 360')) return 'G | 181 a 360';
             if (fn.includes('361 a 720')) return 'H | 361 a 720';
             if (fn.includes('720')) return '+720 dias';
-            if (fn.toLowerCase().includes('prev')) return 'Preventivo';
-            if (fn.includes('1 a 30')) return 'A | 1 a 30';
-            if (fn.includes('31 a 60')) return 'B | 31 a 60';
             return TODAS_FAIXAS.includes(fn) ? fn : 'C | 61 a 90';
         }
 
         async function criarNovaAba() {
-            let nomeAba = prompt("Nome da nova aba (ex: Dia 15/08, Banco X):");
+            let nomeAba = prompt("Nome da nova aba (ex: Carteira 12/08):");
             if (nomeAba && nomeAba.trim() !== '') {
                 const newId = 'aba_' + Date.now();
-                const novaAba = { id: newId, nome: nomeAba.trim() };
-                await db.from('abas').insert([novaAba]);
+                await db.from('abas').insert([{ id: newId, nome: nomeAba.trim() }]);
                 abaAtivaId = newId;
                 await carregarDadosSilencioso();
             }
@@ -403,7 +436,6 @@
         function selecionarAba(id) {
             abaAtivaId = id;
             statusAtivo = 'Todos';
-            faixaAtiva = 'Todas';
             renderizarAbas();
             renderizar();
         }
@@ -421,7 +453,7 @@
         async function excluirAba(id, event) {
             event.stopPropagation();
             if(abas.length === 1) return alert("Você não pode excluir a última aba.");
-            if(confirm(`Tem certeza que deseja excluir esta aba e TODOS os clientes nela?`)) {
+            if(confirm(`Deseja excluir esta aba e todos os clientes dela?`)) {
                 await db.from('clientes').delete().eq('aba_id', id);
                 await db.from('abas').delete().eq('id', id);
                 if(abaAtivaId === id) {
@@ -437,14 +469,14 @@
             container.innerHTML = '';
             abas.forEach(aba => {
                 const isAtiva = aba.id === abaAtivaId;
-                const clientesNessaAba = clientes.filter(c => c.abaId === aba.id).length;
+                const qtd = clientes.filter(c => c.abaId === aba.id).length;
                 let btn = document.createElement('div');
-                btn.className = `group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer border transition ${isAtiva ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`;
+                btn.className = `group flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer border transition shadow-xs ${isAtiva ? 'bg-emerald-600 border-emerald-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`;
                 btn.onclick = () => selecionarAba(aba.id);
                 btn.innerHTML = `
                     <span ondblclick="renomearAba('${aba.id}')">${aba.nome}</span>
-                    <span class="${isAtiva ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-500'} px-1.5 py-0.5 rounded-md text-[10px]">${clientesNessaAba}</span>
-                    ${abas.length > 1 ? `<button onclick="excluirAba('${aba.id}', event)" class="ml-1 opacity-0 group-hover:opacity-100 hover:text-rose-600 transition" title="Excluir Aba">✕</button>` : ''}
+                    <span class="${isAtiva ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-500'} px-1.5 py-0.5 rounded-lg text-[10px]">${qtd}</span>
+                    ${abas.length > 1 ? `<button onclick="excluirAba('${aba.id}', event)" class="ml-0.5 opacity-0 group-hover:opacity-100 hover:text-rose-200 transition" title="Excluir Aba">✕</button>` : ''}
                 `;
                 container.appendChild(btn);
             });
@@ -452,9 +484,8 @@
 
         async function salvarTemplate() {
             templateMsg = document.getElementById('template-mensagem').value;
-            const { error } = await db.from('configuracoes').upsert({ chave: 'templateMsg', valor: templateMsg });
-            if(error) console.error(error);
-            alert("Template salvo com sucesso no banco de dados!");
+            await db.from('configuracoes').upsert({ chave: 'templateMsg', valor: templateMsg });
+            alert("Template salvo com sucesso!");
         }
 
         function ordenarClientes(lista) {
@@ -472,8 +503,8 @@
             ['Todos', 'Pendente', 'Acionado', 'Confirmado', 'Pago', 'Não vão pagar'].forEach(s => {
                 let el = document.getElementById(`btn-status-${s}`);
                 if (el) {
-                    if (s === status) el.className = "px-3 py-1.5 text-xs font-medium rounded-lg transition bg-slate-800 text-white whitespace-nowrap shadow-sm";
-                    else el.className = "px-3 py-1.5 text-xs font-medium rounded-lg transition text-slate-600 hover:bg-slate-200 whitespace-nowrap";
+                    if (s === status) el.className = "px-3 py-1.5 text-xs font-bold rounded-lg transition bg-slate-800 text-white whitespace-nowrap shadow-xs";
+                    else el.className = "px-3 py-1.5 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-200 whitespace-nowrap";
                 }
             });
             renderizar();
@@ -481,9 +512,6 @@
 
         function getEstiloFaixa(faixa) {
             const estilos = {
-                'Preventivo': 'bg-teal-50 border-teal-200 text-teal-800',
-                'A | 1 a 30': 'bg-emerald-50 border-emerald-200 text-emerald-800',
-                'B | 31 a 60': 'bg-green-50 border-green-200 text-green-800',
                 'C | 61 a 90': 'bg-lime-50 border-lime-200 text-lime-800',
                 'D | 91 a 120': 'bg-yellow-50 border-yellow-200 text-yellow-800',
                 'E | 121 a 150': 'bg-amber-50 border-amber-200 text-amber-800',
@@ -502,7 +530,6 @@
             
             let filtrados = clientesDaAba.filter(c => c.nome.toLowerCase().includes(termoBusca) || c.telefone.includes(termoBusca));
             if (statusAtivo !== 'Todos') filtrados = filtrados.filter(c => c.status === statusAtivo);
-            if (faixaAtiva !== 'Todas') filtrados = filtrados.filter(c => c.faixaAtraso === faixaAtiva);
             filtrados = ordenarClientes(filtrados);
 
             const valorTotal = clientesDaAba.reduce((acc, curr) => acc + curr.valor, 0);
@@ -525,7 +552,7 @@
             document.getElementById('barra-confirmados').style.width = `${pctConf}%`;
             document.getElementById('barra-abertos').style.width = `${pctAberto}%`;
             document.getElementById('barra-recusados').style.width = `${pctRecusado}%`;
-            document.getElementById('texto-porcentagem').innerText = `${pctPago.toFixed(1)}% Pago`;
+            document.getElementById('texto-porcentagem').innerText = `${pctPago.toFixed(1)}% Recuperado`;
 
             document.getElementById('legenda-val-pago').innerText = valorPago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             document.getElementById('legenda-pct-pago').innerText = `(${pctPago.toFixed(1)}%)`;
@@ -536,63 +563,58 @@
             document.getElementById('legenda-val-recusado').innerText = valorRecusado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             document.getElementById('legenda-pct-recusado').innerText = `(${pctRecusado.toFixed(1)}%)`;
 
-            // FAIXAS RESUMO (Em Aberto)
-            const containerFaixas = document.getElementById('grid-faixas-resumo');
-            if(containerFaixas) {
-                containerFaixas.innerHTML = '';
-                TODAS_FAIXAS.forEach(f => {
-                    let cFaixa = clientesDaAba.filter(c => (c.faixaAtraso || 'C | 61 a 90') === f);
-                    let cAberto = cFaixa.filter(c => ['Pendente', 'Acionado', 'Confirmado'].includes(c.status));
-                    let vFaixa = cAberto.reduce((a, b) => a + b.valor, 0);
-                    let pctFaixa = (valorAberto + valorConfirmado) > 0 ? ((vFaixa / (valorAberto + valorConfirmado)) * 100).toFixed(1) : 0;
-                    
-                    if (cFaixa.length > 0 || ['C | 61 a 90', 'D | 91 a 120'].includes(f)) {
-                        containerFaixas.innerHTML += `
-                            <div class="p-2 rounded-xl border ${getEstiloFaixa(f)} flex flex-col justify-between">
-                                <div class="flex justify-between items-center mb-1">
-                                    <span class="text-[9px] uppercase font-bold">${f}</span>
-                                    <span class="text-[8px] bg-white px-1 py-0.5 rounded border border-slate-200/60">${pctFaixa}%</span>
-                                </div>
-                                <div>
-                                    <p class="text-xs font-black">${vFaixa.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                                    <span class="text-[9px] font-medium opacity-80">${cAberto.length} abertos</span>
-                                </div>
-                            </div>
-                        `;
-                    }
-                });
-            }
+            // PREENCHER MODAL DE FAIXAS (ABERTO E PAGO)
+            const gridAberto = document.getElementById('grid-faixas-aberto');
+            const gridPago = document.getElementById('grid-faixas-pago');
+            
+            if (gridAberto && gridPago) {
+                gridAberto.innerHTML = '';
+                gridPago.innerHTML = '';
 
-            // FAIXAS PAGO (Modal)
-            const containerFaixasPago = document.getElementById('grid-faixas-pago');
-            if (containerFaixasPago) {
-                containerFaixasPago.innerHTML = '';
                 TODAS_FAIXAS.forEach(f => {
                     let cFaixa = clientesDaAba.filter(c => (c.faixaAtraso || 'C | 61 a 90') === f);
+                    
+                    // Saldo em Aberto (Pendente + Acionado)
+                    let cAberto = cFaixa.filter(c => ['Pendente', 'Acionado'].includes(c.status));
+                    let vAberto = cAberto.reduce((a, b) => a + b.valor, 0);
+                    
+                    gridAberto.innerHTML += `
+                        <div class="p-3 rounded-xl border ${getEstiloFaixa(f)} flex flex-col justify-between shadow-xs">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-[10px] uppercase font-bold">${f}</span>
+                            </div>
+                            <div>
+                                <p class="text-sm font-black">${vAberto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                                <span class="text-[10px] font-medium opacity-80">${cAberto.length} cliente(s)</span>
+                            </div>
+                        </div>
+                    `;
+
+                    // Valor Pago
                     let cPago = cFaixa.filter(c => c.status === 'Pago');
                     let vPago = cPago.reduce((a, b) => a + b.valor, 0);
-                    let vTotal = cFaixa.reduce((a, b) => a + b.valor, 0);
-                    let pct = vTotal > 0 ? ((vPago / vTotal) * 100).toFixed(1) : 0;
+                    let vTotalFaixa = cFaixa.reduce((a, b) => a + b.valor, 0);
+                    let pctFaixa = vTotalFaixa > 0 ? ((vPago / vTotalFaixa) * 100).toFixed(1) : 0;
 
-                    if (cFaixa.length > 0) {
-                        containerFaixasPago.innerHTML += `
-                            <div class="p-3 rounded-xl border ${getEstiloFaixa(f)} flex flex-col shadow-sm">
-                                <div class="flex justify-between items-center mb-2">
-                                    <span class="text-[10px] uppercase font-bold">${f}</span>
-                                    <span class="text-[9px] bg-white px-1.5 py-0.5 rounded-md font-bold">${pct}%</span>
-                                </div>
-                                <p class="text-sm font-black mb-0.5">${vPago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                    gridPago.innerHTML += `
+                        <div class="p-3 rounded-xl border ${getEstiloFaixa(f)} flex flex-col justify-between shadow-xs">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-[10px] uppercase font-bold">${f}</span>
+                                <span class="text-[9px] bg-white/80 px-1.5 py-0.5 rounded font-bold">${pctFaixa}%</span>
+                            </div>
+                            <div>
+                                <p class="text-sm font-black">${vPago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                                 <span class="text-[10px] font-medium opacity-80">${cPago.length} de ${cFaixa.length} pago(s)</span>
                             </div>
-                        `;
-                    }
+                        </div>
+                    `;
                 });
             }
 
             // TABELA
             tbody.innerHTML = '';
             if (filtrados.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500 font-medium">Nenhum cliente encontrado.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-400 font-medium">Nenhum cliente encontrado.</td></tr>`;
                 return;
             }
 
@@ -609,12 +631,12 @@
                         <td class="p-4 font-mono text-slate-600">${c.telefone}</td>
                         <td class="p-4 font-black text-slate-800">${c.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                         <td class="p-4">
-                            <select onchange="atualizarFaixaCliente(${c.id}, this.value)" class="text-xs font-bold px-2 py-1.5 rounded-lg border outline-none ${getEstiloFaixa(c.faixaAtraso)} bg-transparent">
+                            <select onchange="atualizarFaixaCliente(${c.id}, this.value)" class="text-xs font-bold px-2.5 py-1.5 rounded-xl border outline-none ${getEstiloFaixa(c.faixaAtraso)} bg-transparent cursor-pointer">
                                 ${TODAS_FAIXAS.map(f => `<option value="${f}" ${c.faixaAtraso === f ? 'selected' : ''}>${f}</option>`).join('')}
                             </select>
                         </td>
                         <td class="p-4">
-                            <select onchange="atualizarStatusCliente(${c.id}, this.value)" class="text-xs font-bold px-2 py-1.5 rounded-lg border ${badgeClass} outline-none cursor-pointer">
+                            <select onchange="atualizarStatusCliente(${c.id}, this.value)" class="text-xs font-bold px-2.5 py-1.5 rounded-xl border ${badgeClass} outline-none cursor-pointer">
                                 <option value="Pendente" ${c.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
                                 <option value="Acionado" ${c.status === 'Acionado' ? 'selected' : ''}>Acionado</option>
                                 <option value="Confirmado" ${c.status === 'Confirmado' ? 'selected' : ''}>✅ Confirmado</option>
@@ -627,7 +649,7 @@
                         </td>
                         <td class="p-4 text-center">
                             <div class="flex items-center justify-center gap-2">
-                                <button onclick="acionarWhatsApp(${c.id})" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1.5 rounded-lg font-bold transition shadow-sm text-xs">WA</button>
+                                <button onclick="acionarWhatsApp(${c.id})" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1.5 rounded-xl font-bold transition shadow-xs text-xs">WA</button>
                                 <button onclick="removerCliente(${c.id})" class="text-slate-400 hover:text-rose-600 font-bold transition">🗑️</button>
                             </div>
                         </td>
@@ -716,7 +738,6 @@
             });
 
             if (insercoes.length > 0) {
-                atualizarStatusConexao(false, "Importando...");
                 await db.from('clientes').insert(insercoes);
                 await carregarDadosSilencioso();
                 fecharModalLote();
@@ -733,14 +754,13 @@
             let telefones = linhas.map(l => l.trim().replace(/\D/g, '')).filter(t => t.length > 0);
             
             if (telefones.length > 0) {
-                atualizarStatusConexao(false, "Baixando...");
                 const ids = clientes.filter(c => c.abaId === abaAtivaId && telefones.includes(c.telefone)).map(c => c.id);
                 if(ids.length > 0) {
                     await db.from('clientes').update({ status: 'Acionado' }).in('id', ids);
                     await carregarDadosSilencioso();
                     alert(`Status de ${ids.length} clientes atualizado para "Acionado"!`);
                     fecharModalLote();
-                } else alert("Nenhum telefone encontrado na ABA ATUAL.");
+                } else alert("Nenhum telefone encontrado na aba atual.");
             }
         }
 
@@ -759,7 +779,7 @@
         }
 
         async function removerCliente(id) {
-            if (confirm("Excluir cliente?")) {
+            if (confirm("Deseja excluir este cliente?")) {
                 await db.from('clientes').delete().eq('id', id);
                 clientes = clientes.filter(c => c.id !== id);
                 renderizar();
@@ -768,12 +788,10 @@
 
         async function excluirTodos() {
             let count = clientes.filter(c => c.abaId === abaAtivaId).length;
-            if (count === 0) return alert("Aba vazia.");
-            if (confirm(`Apagar TODOS os ${count} clientes DESTA ABA?`)) {
-                atualizarStatusConexao(false, "Limpando...");
+            if (count === 0) return alert("A aba está vazia.");
+            if (confirm(`Deseja apagar TODOS os ${count} clientes desta aba?`)) {
                 await db.from('clientes').delete().eq('aba_id', abaAtivaId);
                 clientes = clientes.filter(c => c.abaId !== abaAtivaId);
-                atualizarStatusConexao(true);
                 renderizar();
             }
         }
@@ -794,13 +812,13 @@
             document.body.removeChild(link);
         }
 
-        // Funções Modais
+        // Modais
         function abrirModal() { document.getElementById('modal').classList.remove('hidden'); }
         function fecharModal() { document.getElementById('modal').classList.add('hidden'); }
         function abrirModalLote() { document.getElementById('texto-lote').value = ''; document.getElementById('modal-lote').classList.remove('hidden'); }
         function fecharModalLote() { document.getElementById('modal-lote').classList.add('hidden'); }
-        function abrirModalFaixasPago() { document.getElementById('modal-faixas-pago').classList.remove('hidden'); }
-        function fecharModalFaixasPago() { document.getElementById('modal-faixas-pago').classList.add('hidden'); }
+        function abrirModalFaixas() { document.getElementById('modal-faixas').classList.remove('hidden'); }
+        function fecharModalFaixas() { document.getElementById('modal-faixas').classList.add('hidden'); }
 
         window.onload = carregarDados;
     </script>
