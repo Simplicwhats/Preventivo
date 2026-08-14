@@ -198,16 +198,18 @@
             <div class="flex justify-between items-center border-b border-slate-100 pb-4">
                 <div>
                     <h3 class="text-base font-black text-slate-800">📊 Relatórios Detalhados (Aba Atual)</h3>
-                    <p class="text-xs text-slate-500 font-medium">Análise por Faixas de Atraso e Desempenho por Operador.</p>
+                    <p class="text-xs text-slate-500 font-medium">Ranking de operadores por valor pago e análise por faixa de atraso.</p>
                 </div>
                 <button onclick="fecharModalFaixas()" class="text-slate-400 hover:text-slate-600 font-bold text-xl p-1">✕</button>
             </div>
 
-            <!-- Seção 1: Desempenho por Operador -->
+            <!-- Seção 1: Ranking de Operadores -->
             <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-3">
-                <h4 class="text-xs font-black uppercase tracking-wider text-indigo-700">👤 Desempenho por Operador</h4>
+                <h4 class="text-xs font-black uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
+                    🏆 Ranking de Operadores (Do Maior para o Menor Valor Pago)
+                </h4>
                 <div id="grid-operadores" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    <!-- Preenchido pelo JS -->
+                    <!-- Preenchido pelo JS em ordem decrescente -->
                 </div>
             </div>
 
@@ -577,7 +579,7 @@
             document.getElementById('legenda-val-recusado').innerText = valorRecusado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             document.getElementById('legenda-pct-recusado').innerText = `(${pctRecusado.toFixed(1)}%)`;
 
-            // PREENCHER MODAL DE FAIXAS & OPERADORES
+            // PREENCHER RANKING DE OPERADORES & FAIXAS
             const gridOperadores = document.getElementById('grid-operadores');
             const gridAberto = document.getElementById('grid-faixas-aberto');
             const gridPago = document.getElementById('grid-faixas-pago');
@@ -587,32 +589,45 @@
                 gridAberto.innerHTML = '';
                 gridPago.innerHTML = '';
 
-                // Agrupando por Operador
+                // Agrupando dados por Operador
                 let operadoresUnicos = [...new Set(clientesDaAba.map(c => c.operador || 'Não atribuído'))];
-                if (operadoresUnicos.length === 0) {
+                
+                let dadosOperadores = operadoresUnicos.map(op => {
+                    let cOp = clientesDaAba.filter(c => (c.operador || 'Não atribuído') === op);
+                    let vPagoOp = cOp.filter(c => c.status === 'Pago').reduce((a, b) => a + b.valor, 0);
+                    let vConfOp = cOp.filter(c => c.status === 'Confirmado').reduce((a, b) => a + b.valor, 0);
+                    let vRecOp = cOp.filter(c => c.status === 'Não vão pagar').reduce((a, b) => a + b.valor, 0);
+                    let vAbertoOp = cOp.filter(c => ['Pendente', 'Acionado'].includes(c.status)).reduce((a, b) => a + b.valor, 0);
+                    return { op, cOp, vPagoOp, vConfOp, vRecOp, vAbertoOp };
+                });
+
+                // ORDENAÇÃO DO RANKING: Do maior valor pago para o menor
+                dadosOperadores.sort((a, b) => b.vPagoOp - a.vPagoOp);
+
+                if (dadosOperadores.length === 0) {
                     gridOperadores.innerHTML = `<p class="text-xs text-slate-400 italic col-span-full">Nenhum operador registrado nesta aba.</p>`;
                 } else {
-                    operadoresUnicos.forEach(op => {
-                        let cOp = clientesDaAba.filter(c => (c.operador || 'Não atribuído') === op);
-                        let vPagoOp = cOp.filter(c => c.status === 'Pago').reduce((a, b) => a + b.valor, 0);
-                        let vConfOp = cOp.filter(c => c.status === 'Confirmado').reduce((a, b) => a + b.valor, 0);
-                        let vRecOp = cOp.filter(c => c.status === 'Não vão pagar').reduce((a, b) => a + b.valor, 0);
-                        let vAbertoOp = cOp.filter(c => ['Pendente', 'Acionado'].includes(c.status)).reduce((a, b) => a + b.valor, 0);
-                        
+                    dadosOperadores.forEach((item, index) => {
+                        let medalha = '';
+                        if (index === 0) medalha = '🥇 ';
+                        else if (index === 1) medalha = '🥈 ';
+                        else if (index === 2) medalha = '🥉 ';
+                        else medalha = `#${index + 1} `;
+
                         gridOperadores.innerHTML += `
                             <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
                                 <div class="flex justify-between items-center border-b border-slate-100 pb-1.5">
-                                    <span class="text-xs font-black text-indigo-900">${op}</span>
-                                    <span class="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-bold">${cOp.length} cliente(s)</span>
+                                    <span class="text-xs font-black text-indigo-900">${medalha}${item.op}</span>
+                                    <span class="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-bold">${item.cOp.length} cliente(s)</span>
                                 </div>
                                 <div class="space-y-1 text-[11px]">
-                                    <div class="flex justify-between"><span class="text-slate-500">Pago:</span> <span class="font-bold text-emerald-600">${vPagoOp.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
-                                    <div class="flex justify-between"><span class="text-slate-500">Confirmado:</span> <span class="font-bold text-teal-600">${vConfOp.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
-                                    <div class="flex justify-between"><span class="text-slate-500">Em Aberto:</span> <span class="font-bold text-amber-600">${vAbertoOp.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
-                                    <div class="flex justify-between"><span class="text-slate-500">Não vão pagar:</span> <span class="font-bold text-rose-600">${vRecOp.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                                    <div class="flex justify-between"><span class="text-slate-500">Pago:</span> <span class="font-bold text-emerald-600">${item.vPagoOp.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                                    <div class="flex justify-between"><span class="text-slate-500">Confirmado:</span> <span class="font-bold text-teal-600">${item.vConfOp.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                                    <div class="flex justify-between"><span class="text-slate-500">Em Aberto:</span> <span class="font-bold text-amber-600">${item.vAbertoOp.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                                    <div class="flex justify-between"><span class="text-slate-500">Não vão pagar:</span> <span class="font-bold text-rose-600">${item.vRecOp.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
                                 </div>
                                 <div class="pt-1 border-t border-slate-100 flex items-center gap-1">
-                                    <input type="text" onchange="atualizarOperadorLotePorNome('${op}', this.value)" placeholder="✏️ Renomear operador..." class="w-full text-[10px] p-1 bg-slate-50 border border-slate-200 rounded outline-none focus:border-indigo-500 transition">
+                                    <input type="text" onchange="atualizarOperadorLotePorNome('${item.op}', this.value)" placeholder="✏️ Renomear operador..." class="w-full text-[10px] p-1 bg-slate-50 border border-slate-200 rounded outline-none focus:border-indigo-500 transition">
                                 </div>
                             </div>
                         `;
