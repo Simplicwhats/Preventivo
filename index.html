@@ -63,7 +63,7 @@
                     📊 Exportar Excel
                 </button>
                 <button onclick="abrirModalFaixas()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs">
-                    📈 Faixas (Aberto / Pago)
+                    📈 Faixas & Operadores
                 </button>
                 <button onclick="excluirTodos()" class="bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs">
                     🗑️ Limpar Aba
@@ -156,7 +156,7 @@
 
         <!-- FILTROS E BUSCA DA TABELA -->
         <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80">
-            <input type="text" id="filtro-busca" onkeyup="renderizar()" placeholder="🔍 Buscar nome ou telefone..." class="px-4 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:border-indigo-500 transition w-full md:w-80 bg-slate-50">
+            <input type="text" id="filtro-busca" onkeyup="renderizar()" placeholder="🔍 Buscar nome, telefone ou operador..." class="px-4 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:border-indigo-500 transition w-full md:w-80 bg-slate-50">
             
             <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto">
                 <button id="btn-status-Todos" onclick="mudarFiltroStatus('Todos')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition bg-slate-800 text-white whitespace-nowrap shadow-xs">Todos</button>
@@ -192,18 +192,26 @@
 
     </main>
 
-    <!-- ================= MODAL: FAIXAS (ABERTO E PAGO) ================= -->
+    <!-- ================= MODAL: FAIXAS & OPERADORES ================= -->
     <div id="modal-faixas" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-white rounded-2xl max-w-5xl w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-6">
             <div class="flex justify-between items-center border-b border-slate-100 pb-4">
                 <div>
-                    <h3 class="text-base font-black text-slate-800">📊 Distribuição por Faixa de Atraso (Aba Atual)</h3>
-                    <p class="text-xs text-slate-500 font-medium">Análise detalhada do saldo em aberto e valores pagos divididos por faixa.</p>
+                    <h3 class="text-base font-black text-slate-800">📊 Relatórios Detalhados (Aba Atual)</h3>
+                    <p class="text-xs text-slate-500 font-medium">Análise por Faixas de Atraso e Desempenho por Operador.</p>
                 </div>
                 <button onclick="fecharModalFaixas()" class="text-slate-400 hover:text-slate-600 font-bold text-xl p-1">✕</button>
             </div>
 
-            <!-- Seção 1: Saldo em Aberto -->
+            <!-- Seção 1: Desempenho por Operador -->
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-3">
+                <h4 class="text-xs font-black uppercase tracking-wider text-indigo-700">👤 Desempenho por Operador</h4>
+                <div id="grid-operadores" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    <!-- Preenchido pelo JS -->
+                </div>
+            </div>
+
+            <!-- Seção 2: Saldo em Aberto -->
             <div>
                 <h4 class="text-xs font-black uppercase tracking-wider text-slate-600 mb-3">⏳ Saldo em Aberto por Faixa</h4>
                 <div id="grid-faixas-aberto" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -211,7 +219,7 @@
                 </div>
             </div>
 
-            <!-- Seção 2: Valor Pago -->
+            <!-- Seção 3: Valor Pago -->
             <div class="pt-2 border-t border-slate-100">
                 <h4 class="text-xs font-black uppercase tracking-wider text-emerald-700 mb-3">💰 Valor Pago / Recuperado por Faixa</h4>
                 <div id="grid-faixas-pago" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -245,6 +253,10 @@
                     <input type="number" id="valor" step="0.01" required class="w-full p-2.5 text-xs border border-slate-300 rounded-xl outline-none focus:border-indigo-500 bg-slate-50">
                 </div>
                 <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Operador Responsável</label>
+                    <input type="text" id="operador" placeholder="Ex: João" class="w-full p-2.5 text-xs border border-slate-300 rounded-xl outline-none focus:border-indigo-500 bg-slate-50">
+                </div>
+                <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1">Faixa de Atraso Inicial</label>
                     <select id="faixaAtraso" class="w-full p-2.5 text-xs border border-slate-300 rounded-xl outline-none focus:border-indigo-500 bg-slate-50">
                         <option value="C | 61 a 90" selected>C | 61 a 90</option>
@@ -270,12 +282,12 @@
             <div class="flex justify-between items-start mb-4">
                 <div>
                     <h2 class="text-base font-black text-slate-800">Ações em Lote</h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Cole os dados no formato: <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">NOME;TELEFONE;VALOR;FAIXA</span></p>
+                    <p class="text-xs text-slate-500 mt-0.5">Cole os dados no formato: <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">NOME;TELEFONE;VALOR;FAIXA;OPERADOR</span></p>
                 </div>
                 <button onclick="fecharModalLote()" class="text-slate-400 hover:text-slate-600 text-lg font-bold p-1">✕</button>
             </div>
             
-            <textarea id="texto-lote" class="w-full h-64 p-3 text-xs font-mono border border-slate-300 rounded-xl outline-none focus:border-indigo-500 bg-slate-50 resize-none" placeholder="MARIA DA SILVA;11999999999;150.50;C | 61 a 90&#10;JOAO SOUZA;11988888888;300.00;D | 91 a 120"></textarea>
+            <textarea id="texto-lote" class="w-full h-64 p-3 text-xs font-mono border border-slate-300 rounded-xl outline-none focus:border-indigo-500 bg-slate-50 resize-none" placeholder="MARIA DA SILVA;11999999999;150.50;C | 61 a 90;Ana&#10;JOAO SOUZA;11988888888;300.00;D | 91 a 120;Carlos"></textarea>
             
             <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
                 <button onclick="processarBaixaEmMassa()" class="px-4 py-2.5 text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl transition border border-blue-200">
@@ -339,7 +351,8 @@
                     valor: parseFloat(c.valor),
                     faixaAtraso: normalizarFaixa(c.faixa_atraso),
                     status: c.status,
-                    motivo: c.motivo || ''
+                    motivo: c.motivo || '',
+                    operador: c.operador || 'Não atribuído'
                 }));
 
                 try {
@@ -391,7 +404,8 @@
                     valor: parseFloat(c.valor),
                     faixaAtraso: normalizarFaixa(c.faixa_atraso),
                     status: c.status,
-                    motivo: c.motivo || ''
+                    motivo: c.motivo || '',
+                    operador: c.operador || 'Não atribuído'
                 }));
                 renderizar();
             }
@@ -528,7 +542,7 @@
             const tbody = document.getElementById('tabela-clientes');
             const termoBusca = document.getElementById('filtro-busca').value.toLowerCase();
             
-            let filtrados = clientesDaAba.filter(c => c.nome.toLowerCase().includes(termoBusca) || c.telefone.includes(termoBusca));
+            let filtrados = clientesDaAba.filter(c => c.nome.toLowerCase().includes(termoBusca) || c.telefone.includes(termoBusca) || (c.operador && c.operador.toLowerCase().includes(termoBusca)));
             if (statusAtivo !== 'Todos') filtrados = filtrados.filter(c => c.status === statusAtivo);
             filtrados = ordenarClientes(filtrados);
 
@@ -563,13 +577,47 @@
             document.getElementById('legenda-val-recusado').innerText = valorRecusado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             document.getElementById('legenda-pct-recusado').innerText = `(${pctRecusado.toFixed(1)}%)`;
 
-            // PREENCHER MODAL DE FAIXAS (ABERTO E PAGO)
+            // PREENCHER MODAL DE FAIXAS & OPERADORES
+            const gridOperadores = document.getElementById('grid-operadores');
             const gridAberto = document.getElementById('grid-faixas-aberto');
             const gridPago = document.getElementById('grid-faixas-pago');
             
-            if (gridAberto && gridPago) {
+            if (gridOperadores && gridAberto && gridPago) {
+                gridOperadores.innerHTML = '';
                 gridAberto.innerHTML = '';
                 gridPago.innerHTML = '';
+
+                // Agrupando por Operador
+                let operadoresUnicos = [...new Set(clientesDaAba.map(c => c.operador || 'Não atribuído'))];
+                if (operadoresUnicos.length === 0) {
+                    gridOperadores.innerHTML = `<p class="text-xs text-slate-400 italic col-span-full">Nenhum operador registrado nesta aba.</p>`;
+                } else {
+                    operadoresUnicos.forEach(op => {
+                        let cOp = clientesDaAba.filter(c => (c.operador || 'Não atribuído') === op);
+                        let vPagoOp = cOp.filter(c => c.status === 'Pago').reduce((a, b) => a + b.valor, 0);
+                        let vConfOp = cOp.filter(c => c.status === 'Confirmado').reduce((a, b) => a + b.valor, 0);
+                        let vRecOp = cOp.filter(c => c.status === 'Não vão pagar').reduce((a, b) => a + b.valor, 0);
+                        let vAbertoOp = cOp.filter(c => ['Pendente', 'Acionado'].includes(c.status)).reduce((a, b) => a + b.valor, 0);
+                        
+                        gridOperadores.innerHTML += `
+                            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
+                                <div class="flex justify-between items-center border-b border-slate-100 pb-1.5">
+                                    <span class="text-xs font-black text-indigo-900">${op}</span>
+                                    <span class="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-bold">${cOp.length} cliente(s)</span>
+                                </div>
+                                <div class="space-y-1 text-[11px]">
+                                    <div class="flex justify-between"><span class="text-slate-500">Pago:</span> <span class="font-bold text-emerald-600">${vPagoOp.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                                    <div class="flex justify-between"><span class="text-slate-500">Confirmado:</span> <span class="font-bold text-teal-600">${vConfOp.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                                    <div class="flex justify-between"><span class="text-slate-500">Em Aberto:</span> <span class="font-bold text-amber-600">${vAbertoOp.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                                    <div class="flex justify-between"><span class="text-slate-500">Não vão pagar:</span> <span class="font-bold text-rose-600">${vRecOp.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                                </div>
+                                <div class="pt-1 border-t border-slate-100 flex items-center gap-1">
+                                    <input type="text" onchange="atualizarOperadorLotePorNome('${op}', this.value)" placeholder="✏️ Renomear operador..." class="w-full text-[10px] p-1 bg-slate-50 border border-slate-200 rounded outline-none focus:border-indigo-500 transition">
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
 
                 TODAS_FAIXAS.forEach(f => {
                     let cFaixa = clientesDaAba.filter(c => (c.faixaAtraso || 'C | 61 a 90') === f);
@@ -625,7 +673,10 @@
 
                 let row = `
                     <tr class="hover:bg-slate-50/80 transition">
-                        <td class="p-4 font-bold text-slate-700">${c.nome}</td>
+                        <td class="p-4">
+                            <div class="font-bold text-slate-700">${c.nome}</div>
+                            <div class="text-[10px] text-slate-400 font-medium flex items-center gap-1">Op: <span class="text-indigo-600 font-semibold">${c.operador || 'Não atribuído'}</span></div>
+                        </td>
                         <td class="p-4 font-mono text-slate-600">${c.telefone}</td>
                         <td class="p-4 font-black text-slate-800">${c.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                         <td class="p-4">
@@ -683,11 +734,21 @@
             }
         }
 
+        async function atualizarOperadorLotePorNome(antigoOp, novoOp) {
+            if (!novoOp || !novoOp.trim()) return;
+            let ids = clientes.filter(c => c.abaId === abaAtivaId && (c.operador || 'Não atribuído') === antigoOp).map(c => c.id);
+            if (ids.length > 0) {
+                await db.from('clientes').update({ operador: novoOp.trim() }).in('id', ids);
+                await carregarDadosSilencioso();
+            }
+        }
+
         async function salvarCliente(e) {
             e.preventDefault();
             const nome = document.getElementById('nome').value.toUpperCase();
             const telefone = document.getElementById('telefone').value.replace(/\D/g, '');
             const valor = parseFloat(document.getElementById('valor').value);
+            const operador = document.getElementById('operador').value.trim() || 'Não atribuído';
             const faixa = document.getElementById('faixaAtraso').value;
 
             if (nome && telefone && valor) {
@@ -699,7 +760,8 @@
                     valor, 
                     faixa_atraso: faixa, 
                     status: 'Pendente', 
-                    motivo: '' 
+                    motivo: '',
+                    operador
                 };
                 const { data, error } = await db.from('clientes').insert([novoCliente]).select();
                 if(error) return alert("Erro ao salvar cliente: " + error.message);
@@ -713,7 +775,8 @@
                         valor: parseFloat(data[0].valor),
                         faixaAtraso: normalizarFaixa(data[0].faixa_atraso),
                         status: data[0].status,
-                        motivo: data[0].motivo
+                        motivo: data[0].motivo,
+                        operador: data[0].operador || 'Não atribuído'
                     });
                 }
                 fecharModal();
@@ -744,7 +807,8 @@
                             valor: numVal, 
                             faixa_atraso: partes[3] ? normalizarFaixa(partes[3]) : 'C | 61 a 90', 
                             status: 'Pendente', 
-                            motivo: ''
+                            motivo: '',
+                            operador: partes[4] ? partes[4].trim() : 'Não atribuído'
                         });
                     }
                 }
@@ -761,7 +825,7 @@
                 fecharModalLote();
                 alert(`${insercoes.length} clientes importados com sucesso!`);
             } else {
-                alert("Nenhum dado válido. Use: NOME;TELEFONE;VALOR;FAIXA");
+                alert("Nenhum dado válido. Use: NOME;TELEFONE;VALOR;FAIXA;OPERADOR");
             }
         }
 
@@ -782,46 +846,48 @@
             }
         }
 
-       async function acionarWhatsApp(id) {
-    const c = clientes.find(cliente => cliente.id === id);
+        async function acionarWhatsApp(id) {
+            const c = clientes.find(cliente => cliente.id === id);
 
-    if (!c) return;
+            if (!c) return;
 
-    const v = c.valor.toLocaleString('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-    });
+            const v = c.valor.toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            });
 
-    const mensagem = templateMsg
-        .replace(/{nome}/g, c.nome)
-        .replace(/{valor}/g, v)
-        .replace(/{faixa}/g, c.faixaAtraso);
+            const mensagem = templateMsg
+                .replace(/{nome}/g, c.nome)
+                .replace(/{valor}/g, v)
+                .replace(/{faixa}/g, c.faixaAtraso);
 
-    let telefone = String(c.telefone).replace(/\D/g, '');
+            let telefone = String(c.telefone).replace(/\D/g, '');
 
-    if (!telefone.startsWith('55')) {
-        telefone = '55' + telefone;
-    }
+            if (!telefone.startsWith('55')) {
+                telefone = '55' + telefone;
+            }
 
-    const urlWhatsApp =
-        'https://web.whatsapp.com/send?phone=' +
-        telefone +
-        '&text=' +
-        encodeURIComponent(mensagem);
+            const urlWhatsApp =
+                'https://web.whatsapp.com/send?phone=' +
+                telefone +
+                '&text=' +
+                encodeURIComponent(mensagem);
 
-    window.open(urlWhatsApp, '_blank');
+            window.open(urlWhatsApp, '_blank');
 
-    if (c.status === 'Pendente') {
-        c.status = 'Acionado';
+            if (c.status === 'Pendente') {
+                c.status = 'Acionado';
 
-        await db
-            .from('clientes')
-            .update({ status: 'Acionado' })
-            .eq('id', id);
+                await db
+                    .from('clientes')
+                    .update({ status: 'Acionado' })
+                    .eq('id', id);
 
-        renderizar();
-    }
-}        async function removerCliente(id) {
+                renderizar();
+            }
+        }
+
+        async function removerCliente(id) {
             if (confirm("Deseja excluir este cliente?")) {
                 await db.from('clientes').delete().eq('id', id);
                 clientes = clientes.filter(c => c.id !== id);
@@ -840,10 +906,10 @@
         }
 
         function exportarExcel() {
-            let csv = "Nome,Telefone,Valor,Faixa de Atraso,Status,Motivo\n";
+            let csv = "Nome,Telefone,Valor,Faixa de Atraso,Status,Motivo,Operador\n";
             clientes.filter(c => c.abaId === abaAtivaId).forEach(c => {
                 let v = c.valor.toFixed(2).replace('.', ',');
-                csv += `"${c.nome}","${c.telefone}","${v}","${c.faixaAtraso}","${c.status}","${c.motivo}"\n`;
+                csv += `"${c.nome}","${c.telefone}","${v}","${c.faixaAtraso}","${c.status}","${c.motivo}","${c.operador || 'Não atribuído'}"\n`;
             });
             let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             let link = document.createElement("a");
