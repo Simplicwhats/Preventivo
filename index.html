@@ -180,6 +180,7 @@
                             <th class="p-4 font-bold">Faixa de Atraso</th>
                             <th class="p-4 font-bold">Status</th>
                             <th class="p-4 font-bold">Observações (Motivo)</th>
+                            <th class="p-4 font-bold text-center">Comprovante</th>
                             <th class="p-4 font-bold text-center">Ações</th>
                         </tr>
                     </thead>
@@ -354,7 +355,8 @@
                     faixaAtraso: normalizarFaixa(c.faixa_atraso),
                     status: c.status,
                     motivo: c.motivo || '',
-                    operador: c.operador || 'Não atribuído'
+                    operador: c.operador || 'Não atribuído',
+                    comprovante_url: c.comprovante_url || ''
                 }));
 
                 try {
@@ -407,7 +409,8 @@
                     faixaAtraso: normalizarFaixa(c.faixa_atraso),
                     status: c.status,
                     motivo: c.motivo || '',
-                    operador: c.operador || 'Não atribuído'
+                    operador: c.operador || 'Não atribuído',
+                    comprovante_url: c.comprovante_url || ''
                 }));
                 renderizar();
             }
@@ -675,7 +678,7 @@
             // TABELA
             tbody.innerHTML = '';
             if (filtrados.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-400 font-medium">Nenhum cliente encontrado.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-400 font-medium">Nenhum cliente encontrado.</td></tr>`;
                 return;
             }
 
@@ -687,8 +690,8 @@
                 else if(c.status === 'Não vão pagar') badgeClass = 'bg-rose-50 text-rose-700 border-rose-200';
                 
                 // Variável do comprovante que você já havia criado
-                let iconeComprovante = c.comprovante_url 
-    ? `<button onclick="abrirModalComprovante('${c.comprovante_url}')" class="text-indigo-600 font-bold underline text-xs cursor-pointer hover:text-indigo-800 transition" title="Ver Comprovante">📄 Ver</button>`
+                let iconeComprovante = c.comprovante_url
+    ? `<button type="button" onclick='abrirModalComprovante(${JSON.stringify(c.comprovante_url)})' class="text-indigo-600 font-bold underline text-xs cursor-pointer hover:text-indigo-800 transition" title="Ver Comprovante">📄 Ver</button>`
     : `<label class="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs">
             📎 Anexar
             <input type="file" accept="image/*,application/pdf" class="hidden" onchange="enviarComprovante(${c.id}, this)">
