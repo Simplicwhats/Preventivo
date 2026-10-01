@@ -1001,55 +1001,90 @@
         function fecharModalFaixas() { document.getElementById('modal-faixas').classList.add('hidden'); }
 
         // Garante que a função fique visível globalmente para o HTML
+let comprovanteZoom = 100;
+let comprovanteUrlAtual = '';
+let comprovanteEhPdf = false;
+
+function renderizarComprovanteZoom() {
+    const container = document.getElementById('container-conteudo-comprovante');
+    const zoomLabel = document.getElementById('comprovante-zoom-label');
+    if (!container) return;
+
+    if (zoomLabel) zoomLabel.textContent = comprovanteZoom + '%';
+
+    if (comprovanteEhPdf) {
+        // O visualizador nativo de PDF do navegador aceita o parâmetro #zoom.
+        const baseUrl = comprovanteUrlAtual.split('#')[0];
+        const src = baseUrl + '#zoom=' + comprovanteZoom;
+        container.innerHTML = `<iframe src="${src}" title="Comprovante PDF" class="w-full h-full min-h-[600px] rounded-lg border-0 bg-white"></iframe>`;
+    } else {
+        container.innerHTML = `
+            <div class="w-full h-full min-h-[600px] overflow-auto flex items-start justify-center p-6">
+                <img src="${comprovanteUrlAtual}" alt="Comprovante"
+                     style="width:${comprovanteZoom}%; max-width:none; height:auto;"
+                     class="rounded-lg shadow-sm transition-all duration-150">
+            </div>`;
+    }
+}
+
 window.abrirModalComprovante = function(url) {
     if (!url) {
         alert("Nenhum comprovante anexado ou URL inválida.");
         return;
     }
 
-    const container = document.getElementById('container-conteudo-comprovante');
-    if (!container) return;
-    
-    container.innerHTML = ''; // Limpa conteúdo anterior
-
-    // Verifica se é PDF ou Imagem com base na URL
-    const isPdf = url.toLowerCase().includes('.pdf');
-
-    if (isPdf) {
-        container.innerHTML = `<embed src="${url}" type="application/pdf" class="w-full h-[500px] rounded-lg">`;
-    } else {
-        container.innerHTML = `<img src="${url}" alt="Comprovante" class="max-w-full max-h-[500px] object-contain rounded-lg">`;
-    }
+    comprovanteUrlAtual = url;
+    comprovanteEhPdf = /\.pdf(?:[?#]|$)/i.test(url);
+    comprovanteZoom = 100;
 
     const modal = document.getElementById('modal-comprovante');
-    if (modal) {
-        modal.classList.remove('hidden');
-    }
+    if (modal) modal.classList.remove('hidden');
+
+    renderizarComprovanteZoom();
+};
+
+window.alterarZoomComprovante = function(delta) {
+    comprovanteZoom = Math.min(300, Math.max(25, comprovanteZoom + delta));
+    renderizarComprovanteZoom();
+};
+
+window.definirZoomComprovante = function(valor) {
+    comprovanteZoom = Math.min(300, Math.max(25, Number(valor) || 100));
+    renderizarComprovanteZoom();
 };
 
 window.fecharModalComprovante = function() {
     const modal = document.getElementById('modal-comprovante');
-    if (modal) {
-        modal.classList.add('hidden');
-    }
+    if (modal) modal.classList.add('hidden');
     const container = document.getElementById('container-conteudo-comprovante');
-    if (container) {
-        container.innerHTML = '';
-    }
+    if (container) container.innerHTML = '';
+    comprovanteUrlAtual = '';
+    comprovanteEhPdf = false;
+    comprovanteZoom = 100;
 };
-        
+
         window.onload = carregarDados;
     </script>
 
-    <!-- Modal de Visualização de Comprovante (Coloque aqui no final) -->
-    <div id="modal-comprovante" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 relative flex flex-col max-h-[90vh]">
-            <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
-                <h3 class="text-sm font-bold text-slate-800">Visualizar Comprovante</h3>
-                <button onclick="fecharModalComprovante()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
+    <!-- Modal de Visualização de Comprovante -->
+    <div id="modal-comprovante" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 z-[60] hidden">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[94vh] p-4 md:p-5 relative flex flex-col">
+            <div class="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-slate-100 mb-3">
+                <h3 class="text-sm font-bold text-slate-800">📄 Visualizar Comprovante</h3>
+
+                <div class="flex items-center gap-1.5">
+                    <button type="button" onclick="definirZoomComprovante(75)" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold" title="75%">75%</button>
+                    <button type="button" onclick="definirZoomComprovante(100)" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold" title="Tamanho normal">100%</button>
+                    <button type="button" onclick="definirZoomComprovante(150)" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold" title="150%">150%</button>
+                    <button type="button" onclick="alterarZoomComprovante(-25)" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-lg font-black" title="Diminuir zoom">−</button>
+                    <span id="comprovante-zoom-label" class="w-12 text-center text-xs font-black text-slate-600">100%</span>
+                    <button type="button" onclick="alterarZoomComprovante(25)" class="w-9 h-9 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-lg font-black" title="Aumentar zoom">+</button>
+                    <button type="button" onclick="fecharModalComprovante()" class="ml-2 w-9 h-9 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-lg" title="Fechar">✕</button>
+                </div>
             </div>
-            <div id="container-conteudo-comprovante" class="flex-1 overflow-auto flex items-center justify-center bg-slate-50 rounded-xl p-2 min-h-[350px]">
-                <!-- O conteúdo (imagem ou pdf) será injetado aqui via JavaScript -->
+
+            <div id="container-conteudo-comprovante" class="flex-1 min-h-0 overflow-auto flex items-start justify-center bg-slate-100 rounded-xl p-2">
+                <!-- Conteúdo injetado via JavaScript -->
             </div>
         </div>
     </div>
