@@ -679,19 +679,20 @@
                 return;
             }
 
-            filtrados.forEach(c => {
+           filtrados.forEach(c => {
                 let badgeClass = 'bg-slate-100 text-slate-600 border-slate-200';
                 if(c.status === 'Acionado') badgeClass = 'bg-blue-50 text-blue-700 border-blue-200';
                 else if(c.status === 'Confirmado') badgeClass = 'bg-teal-50 text-teal-700 border-teal-200 font-bold';
                 else if(c.status === 'Pago') badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold';
                 else if(c.status === 'Não vão pagar') badgeClass = 'bg-rose-50 text-rose-700 border-rose-200';
-                // Exemplo de trecho dentro da linha da tabela:
-let iconeComprovante = c.comprovante_url 
-    ? `<a href="${c.comprovante_url}" target="_blank" class="text-indigo-600 font-bold underline text-xs" title="Ver Comprovante">📄 Ver</a>`
-    : `<label class="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs">
-           📎 Anexar
-           <input type="file" accept="image/*,application/pdf" class="hidden" onchange="enviarComprovante(${c.id}, this)">
-       </label>`;
+                
+                // Variável do comprovante que você já havia criado
+                let iconeComprovante = c.comprovante_url 
+                    ? `<a href="${c.comprovante_url}" target="_blank" class="text-indigo-600 font-bold underline text-xs" title="Ver Comprovante">📄 Ver</a>`
+                    : `<label class="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs">
+                            📎 Anexar
+                            <input type="file" accept="image/*,application/pdf" class="hidden" onchange="enviarComprovante(${c.id}, this)">
+                       </label>`;
 
                 let row = `
                     <tr class="hover:bg-slate-50/80 transition">
@@ -717,6 +718,10 @@ let iconeComprovante = c.comprovante_url
                         </td>
                         <td class="p-4 w-64">
                             <input type="text" onchange="atualizarMotivoCliente(${c.id}, this.value)" value="${c.motivo}" placeholder="Adicione nota..." class="w-full text-xs p-2 bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-500 outline-none transition placeholder-slate-400">
+                        </td>
+                        <!-- ADICIONADO AQUI: Coluna para o Comprovante -->
+                        <td class="p-4 text-center">
+                            ${iconeComprovante}
                         </td>
                         <td class="p-4 text-center">
                             <div class="flex items-center justify-center gap-2">
@@ -756,11 +761,11 @@ let iconeComprovante = c.comprovante_url
             }
         }
 
-        async function enviarComprovante(clienteId, inputElement) {
+       async function enviarComprovante(clienteId, inputElement) {
     const arquivo = inputElement.files[0];
     if (!arquivo) return;
 
-    // Gerar um nome único para o arquivo para evitar conflitos (ex: timestamp + nome original)
+    // Gerar um nome único para o arquivo para evitar conflitos
     const nomeArquivo = `${clienteId}_${Date.now()}_${arquivo.name}`;
     const caminhoStorage = `comprovantes/${nomeArquivo}`;
 
@@ -774,19 +779,19 @@ let iconeComprovante = c.comprovante_url
             throw new Error("Erro no upload: " + uploadError.message);
         }
 
-        // 2. Obter a URL pública do arquivo enviado
+        // 2. Obter a URL pública do arquivo enviado (Formato correto)
         const { data: urlData } = db.storage
             .from('comprovantes')
             .getPublicUrl(caminhoStorage);
 
         const urlPublica = urlData.publicUrl;
 
-        // 3. Atualizar a tabela 'clientes' no banco com a URL do comprovante e opcionalmente mudar o status para 'Pago'
+        // 3. Atualizar a tabela 'clientes' no banco com a URL e mudar o status para 'Pago'
         const { error: updateError } = await db
             .from('clientes')
             .update({ 
                 comprovante_url: urlPublica,
-                status: 'Pago' // Opcional: já marca como pago automaticamente ao anexar
+                status: 'Pago' 
             })
             .eq('id', clienteId);
 
@@ -796,7 +801,7 @@ let iconeComprovante = c.comprovante_url
 
         alert("Comprovante enviado com sucesso e status atualizado para Pago!");
         
-        // Recarregar os dados localmente ou re-renderizar a tela
+        // Recarregar os dados e re-renderizar a tela
         await carregarDadosSilencioso();
         renderizar();
 
