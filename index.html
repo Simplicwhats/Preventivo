@@ -10,6 +10,39 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col md:flex-row">
+    <!-- TELA DE LOGIN -->
+    <div id="tela-login" class="fixed inset-0 z-[100] bg-slate-950 flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl p-7 md:p-9">
+            <div class="text-center mb-7">
+                <div class="mx-auto w-16 h-16 rounded-2xl bg-indigo-600 flex items-center justify-center text-white text-3xl shadow-lg">💬</div>
+                <h2 class="mt-4 text-2xl font-black text-slate-800">CRC WhatsApp</h2>
+                <p class="text-sm text-slate-500 mt-1">Acesso ao sistema de cobrança</p>
+            </div>
+
+            <form id="form-login" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">E-mail</label>
+                    <input id="login-email" type="email" required autocomplete="username" placeholder="seu@email.com"
+                        class="w-full p-3.5 rounded-xl border border-slate-200 bg-slate-50 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">Senha</label>
+                    <input id="login-senha" type="password" required autocomplete="current-password" placeholder="••••••••"
+                        class="w-full p-3.5 rounded-xl border border-slate-200 bg-slate-50 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 text-sm">
+                </div>
+                <div id="login-erro" class="hidden p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold"></div>
+                <button id="btn-login" type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl transition shadow-lg">
+                    Entrar no sistema
+                </button>
+            </form>
+
+            <p class="text-[11px] text-slate-400 text-center mt-5 leading-relaxed">
+                O nível de acesso é definido pela conta do Supabase. Administrador possui edição completa; operador possui acesso somente para visualização.
+            </p>
+        </div>
+    </div>
+
+    <div id="app-shell" class="hidden contents">
 
     <!-- SIDEBAR ESQUERDA -->
     <aside class="w-full md:w-80 bg-slate-900 text-slate-100 p-6 flex flex-col justify-between shrink-0 shadow-lg">
@@ -31,7 +64,7 @@
                     Tags: <code class="text-indigo-400 bg-slate-900 px-1 py-0.5 rounded">{nome}</code>, <code class="text-indigo-400 bg-slate-900 px-1 py-0.5 rounded">{valor}</code>, <code class="text-indigo-400 bg-slate-900 px-1 py-0.5 rounded">{faixa}</code>
                 </p>
                 <textarea id="template-mensagem" class="w-full h-28 bg-slate-900 text-slate-200 text-xs p-3 rounded-xl border border-slate-700 outline-none focus:border-indigo-500 transition resize-none"></textarea>
-                <button onclick="salvarTemplate()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-md flex items-center justify-center gap-1.5">
+                <button data-admin-only onclick="salvarTemplate()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-md flex items-center justify-center gap-1.5">
                     💾 Salvar Template
                 </button>
             </div>
@@ -65,22 +98,29 @@
                 <button onclick="abrirModalFaixas()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs">
                     📈 Faixas & Operadores
                 </button>
-                <button onclick="excluirTodos()" class="bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs">
+                <button data-admin-only onclick="excluirTodos()" class="bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs">
                     🗑️ Limpar Aba
                 </button>
-                <button onclick="abrirModalLote()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                <button data-admin-only onclick="abrirModalLote()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
                     📁 Importar Lote
                 </button>
-                <button onclick="abrirModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                <button data-admin-only onclick="abrirModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
                     + Novo Cliente
                 </button>
+                <div class="flex items-center gap-2 ml-1 pl-2 border-l border-slate-200">
+                    <div class="text-right hidden sm:block">
+                        <p id="usuario-nome" class="text-[10px] font-black text-slate-700 truncate max-w-[170px]">-</p>
+                        <p id="usuario-perfil" class="text-[9px] text-slate-400 font-bold uppercase">-</p>
+                    </div>
+                    <button onclick="fazerLogout()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-xl transition">Sair</button>
+                </div>
             </div>
         </header>
 
         <!-- ABAS -->
         <div class="flex items-center gap-3 overflow-x-auto pb-1">
             <div id="container-abas" class="flex gap-2"></div>
-            <button onclick="criarNovaAba()" class="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition shadow-xs">
+            <button data-admin-only onclick="criarNovaAba()" class="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition shadow-xs">
                 + Nova Aba
             </button>
         </div>
@@ -303,6 +343,8 @@
         </div>
     </div>
 
+    </div>
+
     <!-- ================= JAVASCRIPT ================= -->
     <script>
         const SUPABASE_URL = "https://kgidkxaqvgcqiqwqxvut.supabase.co";
@@ -316,6 +358,9 @@
         let statusAtivo = 'Todos';
         let templateMsg = "Olá {nome}! Lembramos do seu título no valor de {valor} na faixa {faixa}. Entre em contato conosco para regularizar seu débito e evitar demais encargos!";
         let debounceTimer = null;
+        let usuarioAtual = null;
+        let isAdmin = false;
+        let canalRealtime = null;
 
         const TODAS_FAIXAS = [
             'C | 61 a 90',
@@ -326,6 +371,95 @@
             'H | 361 a 720',
             '+720 dias'
         ];
+
+        function mostrarErroLogin(mensagem) {
+            const el = document.getElementById('login-erro');
+            if (!el) return;
+            el.textContent = mensagem;
+            el.classList.remove('hidden');
+        }
+
+        function aplicarPermissoes() {
+            document.body.classList.toggle('modo-operador', !isAdmin);
+            document.getElementById('app-shell')?.classList.remove('hidden');
+            document.getElementById('tela-login')?.classList.add('hidden');
+
+            document.querySelectorAll('[data-admin-only]').forEach(el => {
+                el.classList.toggle('hidden', !isAdmin);
+            });
+
+            const email = usuarioAtual?.email || 'Usuário';
+            const nomeEl = document.getElementById('usuario-nome');
+            const perfilEl = document.getElementById('usuario-perfil');
+            if (nomeEl) nomeEl.textContent = email;
+            if (perfilEl) perfilEl.textContent = isAdmin ? 'Administrador' : 'Operador';
+
+            const template = document.getElementById('template-mensagem');
+            if (template) template.disabled = !isAdmin;
+        }
+
+        async function entrarNoSistema(email, senha) {
+            const btn = document.getElementById('btn-login');
+            const erro = document.getElementById('login-erro');
+            erro?.classList.add('hidden');
+            if (btn) { btn.disabled = true; btn.textContent = 'Entrando...'; }
+
+            try {
+                const { data, error } = await db.auth.signInWithPassword({ email, password: senha });
+                if (error) throw error;
+                usuarioAtual = data.user;
+                // A role deve ser configurada no app_metadata da conta no Supabase.
+                isAdmin = usuarioAtual?.app_metadata?.role === 'admin';
+                aplicarPermissoes();
+                await carregarDados();
+            } catch (error) {
+                console.error(error);
+                mostrarErroLogin('E-mail ou senha inválidos.');
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = 'Entrar no sistema'; }
+            }
+        }
+
+        async function fazerLogout() {
+            try { await db.auth.signOut(); } catch (e) { console.error(e); }
+            usuarioAtual = null;
+            isAdmin = false;
+            if (canalRealtime) { try { await db.removeChannel(canalRealtime); } catch(e) {} canalRealtime = null; }
+            document.getElementById('app-shell')?.classList.add('hidden');
+            document.getElementById('tela-login')?.classList.remove('hidden');
+            document.getElementById('login-senha').value = '';
+        }
+
+        async function iniciarAutenticacao() {
+            const form = document.getElementById('form-login');
+            form?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await entrarNoSistema(document.getElementById('login-email').value.trim(), document.getElementById('login-senha').value);
+            });
+
+            const { data } = await db.auth.getSession();
+            if (data?.session?.user) {
+                usuarioAtual = data.session.user;
+                isAdmin = usuarioAtual?.app_metadata?.role === 'admin';
+                aplicarPermissoes();
+                await carregarDados();
+            }
+
+            db.auth.onAuthStateChange(async (_event, session) => {
+                if (!session?.user) return;
+                usuarioAtual = session.user;
+                isAdmin = usuarioAtual?.app_metadata?.role === 'admin';
+                aplicarPermissoes();
+            });
+        }
+
+        function exigirAdmin() {
+            if (!isAdmin) {
+                alert('Seu acesso é somente para visualização.');
+                return false;
+            }
+            return true;
+        }
 
         async function carregarDados() {
             atualizarStatusConexao(false, "Sincronizando...");
@@ -443,6 +577,7 @@
         }
 
         async function criarNovaAba() {
+            if (!exigirAdmin()) return;
             let nomeAba = prompt("Nome da nova aba (ex: Carteira 12/08):");
             if (nomeAba && nomeAba.trim() !== '') {
                 const newId = 'aba_' + Date.now();
@@ -460,6 +595,7 @@
         }
 
         async function renomearAba(id) {
+            if (!exigirAdmin()) return;
             const aba = abas.find(a => a.id === id);
             if (!aba) return;
             let novoNome = prompt("Renomear aba para:", aba.nome);
@@ -470,6 +606,7 @@
         }
 
         async function excluirAba(id, event) {
+            if (!exigirAdmin()) return;
             event.stopPropagation();
             if(abas.length === 1) return alert("Você não pode excluir a última aba.");
             if(confirm(`Deseja excluir esta aba e todos os clientes dela?`)) {
@@ -493,15 +630,16 @@
                 btn.className = `group flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer border transition shadow-xs ${isAtiva ? 'bg-emerald-600 border-emerald-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`;
                 btn.onclick = () => selecionarAba(aba.id);
                 btn.innerHTML = `
-                    <span ondblclick="renomearAba('${aba.id}')">${aba.nome}</span>
+                    <span ${isAdmin ? `ondblclick="renomearAba('${aba.id}')" title="Duplo clique para renomear"` : ''}>${aba.nome}</span>
                     <span class="${isAtiva ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-500'} px-1.5 py-0.5 rounded-lg text-[10px]">${qtd}</span>
-                    ${abas.length > 1 ? `<button onclick="excluirAba('${aba.id}', event)" class="ml-0.5 opacity-0 group-hover:opacity-100 hover:text-rose-200 transition" title="Excluir Aba">✕</button>` : ''}
+                    ${isAdmin && abas.length > 1 ? `<button onclick="excluirAba('${aba.id}', event)" class="ml-0.5 opacity-0 group-hover:opacity-100 hover:text-rose-200 transition" title="Excluir Aba">✕</button>` : ''}
                 `;
                 container.appendChild(btn);
             });
         }
 
         async function salvarTemplate() {
+            if (!exigirAdmin()) return;
             templateMsg = document.getElementById('template-mensagem').value;
             await db.from('configuracoes').upsert({ chave: 'templateMsg', valor: templateMsg });
             alert("Template salvo com sucesso!");
@@ -692,10 +830,10 @@
                 // Variável do comprovante que você já havia criado
                 let iconeComprovante = c.comprovante_url
     ? `<button type="button" onclick='abrirModalComprovante(${JSON.stringify(c.comprovante_url)})' class="text-indigo-600 font-bold underline text-xs cursor-pointer hover:text-indigo-800 transition" title="Ver Comprovante">📄 Ver</button>`
-    : `<label class="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs">
+    : (isAdmin ? `<label class="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs">
             📎 Anexar
             <input type="file" accept="image/*,application/pdf" class="hidden" onchange="enviarComprovante(${c.id}, this)">
-       </label>`;
+       </label>` : `<span class="text-slate-400 text-xs">—</span>`);
 
                 let row = `
                     <tr class="hover:bg-slate-50/80 transition">
@@ -706,12 +844,12 @@
                         <td class="p-4 font-mono text-slate-600">${c.telefone}</td>
                         <td class="p-4 font-black text-slate-800">${c.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                         <td class="p-4">
-                            <select onchange="atualizarFaixaCliente(${c.id}, this.value)" class="text-xs font-bold px-2.5 py-1.5 rounded-xl border outline-none ${getEstiloFaixa(c.faixaAtraso)} bg-transparent cursor-pointer">
+                            <select ${isAdmin ? '' : 'disabled'} onchange="atualizarFaixaCliente(${c.id}, this.value)" class="text-xs font-bold px-2.5 py-1.5 rounded-xl border outline-none ${getEstiloFaixa(c.faixaAtraso)} bg-transparent ${isAdmin ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}">
                                 ${TODAS_FAIXAS.map(f => `<option value="${f}" ${c.faixaAtraso === f ? 'selected' : ''}>${f}</option>`).join('')}
                             </select>
                         </td>
                         <td class="p-4">
-                            <select onchange="atualizarStatusCliente(${c.id}, this.value)" class="text-xs font-bold px-2.5 py-1.5 rounded-xl border ${badgeClass} outline-none cursor-pointer">
+                            <select ${isAdmin ? '' : 'disabled'} onchange="atualizarStatusCliente(${c.id}, this.value)" class="text-xs font-bold px-2.5 py-1.5 rounded-xl border ${badgeClass} outline-none ${isAdmin ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}">
                                 <option value="Pendente" ${c.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
                                 <option value="Acionado" ${c.status === 'Acionado' ? 'selected' : ''}>Acionado</option>
                                 <option value="Confirmado" ${c.status === 'Confirmado' ? 'selected' : ''}>✅ Confirmado</option>
@@ -720,7 +858,7 @@
                             </select>
                         </td>
                         <td class="p-4 w-64">
-                            <input type="text" onchange="atualizarMotivoCliente(${c.id}, this.value)" value="${c.motivo}" placeholder="Adicione nota..." class="w-full text-xs p-2 bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-500 outline-none transition placeholder-slate-400">
+                            <input type="text" ${isAdmin ? '' : 'readonly'} onchange="atualizarMotivoCliente(${c.id}, this.value)" value="${c.motivo}" placeholder="${isAdmin ? 'Adicione nota...' : 'Somente visualização'}" class="w-full text-xs p-2 bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-500 outline-none transition placeholder-slate-400 ${isAdmin ? '' : 'opacity-70 cursor-not-allowed'}">
                         </td>
                         <!-- ADICIONADO AQUI: Coluna para o Comprovante -->
                         <td class="p-4 text-center">
@@ -728,8 +866,8 @@
                         </td>
                         <td class="p-4 text-center">
                             <div class="flex items-center justify-center gap-2">
-                                <button onclick="acionarWhatsApp(${c.id})" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1.5 rounded-xl font-bold transition shadow-xs text-xs">WA</button>
-                                <button onclick="removerCliente(${c.id})" class="text-slate-400 hover:text-rose-600 font-bold transition">🗑️</button>
+                                ${isAdmin ? `<button onclick="acionarWhatsApp(${c.id})" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1.5 rounded-xl font-bold transition shadow-xs text-xs">WA</button>
+                                <button onclick="removerCliente(${c.id})" class="text-slate-400 hover:text-rose-600 font-bold transition">🗑️</button>` : `<span class="text-[10px] text-slate-400 font-semibold">Visualização</span>`}
                             </div>
                         </td>
                     </tr>
@@ -739,6 +877,7 @@
         }
 
         async function atualizarStatusCliente(id, status) {
+            if (!exigirAdmin()) return;
             let cl = clientes.find(c => c.id === id);
             if (cl) {
                 cl.status = status;
@@ -748,6 +887,7 @@
         }
 
         async function atualizarFaixaCliente(id, faixa) {
+            if (!exigirAdmin()) return;
             let cl = clientes.find(c => c.id === id);
             if (cl) {
                 cl.faixaAtraso = faixa;
@@ -757,6 +897,7 @@
         }
 
         async function atualizarMotivoCliente(id, motivo) {
+            if (!exigirAdmin()) return;
             let cl = clientes.find(c => c.id === id);
             if(cl) {
                 cl.motivo = motivo;
@@ -765,6 +906,7 @@
         }
 
        async function enviarComprovante(clienteId, inputElement) {
+    if (!exigirAdmin()) return;
     const arquivo = inputElement.files[0];
     if (!arquivo) return;
 
@@ -806,6 +948,7 @@
 }
         
         async function atualizarOperadorLotePorNome(antigoOp, novoOp) {
+            if (!exigirAdmin()) return;
             if (!novoOp || !novoOp.trim()) return;
             let ids = clientes.filter(c => c.abaId === abaAtivaId && (c.operador || 'Não atribuído') === antigoOp).map(c => c.id);
             if (ids.length > 0) {
@@ -815,6 +958,7 @@
         }
 
         async function salvarCliente(e) {
+            if (!exigirAdmin()) return;
             e.preventDefault();
             const nome = document.getElementById('nome').value.toUpperCase();
             const telefone = document.getElementById('telefone').value.replace(/\D/g, '');
@@ -857,6 +1001,7 @@
         }
 
         async function processarImportacaoLote() {
+            if (!exigirAdmin()) return;
             const texto = document.getElementById('texto-lote').value.trim();
             if(!texto) return;
 
@@ -901,6 +1046,7 @@
         }
 
         async function processarBaixaEmMassa() {
+            if (!exigirAdmin()) return;
             const texto = document.getElementById('texto-lote').value.trim();
             if(!texto) return;
             const linhas = texto.split('\n');
@@ -959,6 +1105,7 @@
         }
 
         async function removerCliente(id) {
+            if (!exigirAdmin()) return;
             if (confirm("Deseja excluir este cliente?")) {
                 await db.from('clientes').delete().eq('id', id);
                 clientes = clientes.filter(c => c.id !== id);
@@ -967,6 +1114,7 @@
         }
 
         async function excluirTodos() {
+            if (!exigirAdmin()) return;
             let count = clientes.filter(c => c.abaId === abaAtivaId).length;
             if (count === 0) return alert("A aba está vazia.");
             if (confirm(`Deseja apagar TODOS os ${count} clientes desta aba?`)) {
@@ -1063,7 +1211,7 @@ window.fecharModalComprovante = function() {
     comprovanteZoom = 100;
 };
 
-        window.onload = carregarDados;
+        window.onload = iniciarAutenticacao;
     </script>
 
     <!-- Modal de Visualização de Comprovante -->
