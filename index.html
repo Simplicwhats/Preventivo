@@ -997,26 +997,43 @@
         function abrirModalFaixas() { document.getElementById('modal-faixas').classList.remove('hidden'); }
         function fecharModalFaixas() { document.getElementById('modal-faixas').classList.add('hidden'); }
 
-        function abrirModalComprovante(url) {
-            const container = document.getElementById('container-conteudo-comprovante');
-            container.innerHTML = ''; // Limpa conteúdo anterior
+        // Garante que a função fique visível globalmente para o HTML
+window.abrirModalComprovante = function(url) {
+    if (!url) {
+        alert("Nenhum comprovante anexado ou URL inválida.");
+        return;
+    }
 
-            // Verifica se é PDF ou Imagem com base na URL
-            const isPdf = url.toLowerCase().includes('.pdf');
+    const container = document.getElementById('container-conteudo-comprovante');
+    if (!container) return;
+    
+    container.innerHTML = ''; // Limpa conteúdo anterior
 
-            if (isPdf) {
-                container.innerHTML = `<embed src="${url}" type="application/pdf" class="w-full h-[500px] rounded-lg">`;
-            } else {
-                container.innerHTML = `<img src="${url}" alt="Comprovante" class="max-w-full max-h-[500px] object-contain rounded-lg">`;
-            }
+    // Verifica se é PDF ou Imagem com base na URL
+    const isPdf = url.toLowerCase().includes('.pdf');
 
-            document.getElementById('modal-comprovante').classList.remove('hidden');
-        }
+    if (isPdf) {
+        container.innerHTML = `<embed src="${url}" type="application/pdf" class="w-full h-[500px] rounded-lg">`;
+    } else {
+        container.innerHTML = `<img src="${url}" alt="Comprovante" class="max-w-full max-h-[500px] object-contain rounded-lg">`;
+    }
 
-        function fecharModalComprovante() {
-            document.getElementById('modal-comprovante').classList.add('hidden');
-            document.getElementById('container-conteudo-comprovante').innerHTML = '';
-        }
+    const modal = document.getElementById('modal-comprovante');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+};
+
+window.fecharModalComprovante = function() {
+    const modal = document.getElementById('modal-comprovante');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    const container = document.getElementById('container-conteudo-comprovante');
+    if (container) {
+        container.innerHTML = '';
+    }
+};
         
         window.onload = carregarDados;
     </script>
