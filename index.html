@@ -688,11 +688,11 @@
                 
                 // Variável do comprovante que você já havia criado
                 let iconeComprovante = c.comprovante_url 
-                    ? `<a href="${c.comprovante_url}" target="_blank" class="text-indigo-600 font-bold underline text-xs" title="Ver Comprovante">📄 Ver</a>`
-                    : `<label class="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs">
-                            📎 Anexar
-                            <input type="file" accept="image/*,application/pdf" class="hidden" onchange="enviarComprovante(${c.id}, this)">
-                       </label>`;
+    ? `<button onclick="abrirModalComprovante('${c.comprovante_url}')" class="text-indigo-600 font-bold underline text-xs cursor-pointer hover:text-indigo-800 transition" title="Ver Comprovante">📄 Ver</button>`
+    : `<label class="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs">
+            📎 Anexar
+            <input type="file" accept="image/*,application/pdf" class="hidden" onchange="enviarComprovante(${c.id}, this)">
+       </label>`;
 
                 let row = `
                     <tr class="hover:bg-slate-50/80 transition">
@@ -765,28 +765,22 @@
     const arquivo = inputElement.files[0];
     if (!arquivo) return;
 
-    // Gerar um nome único para o arquivo para evitar conflitos
     const nomeArquivo = `${clienteId}_${Date.now()}_${arquivo.name}`;
     const caminhoStorage = `comprovantes/${nomeArquivo}`;
 
     try {
-        // 1. Fazer o upload do arquivo para o Supabase Storage
         const { data: uploadData, error: uploadError } = await db.storage
             .from('comprovantes')
             .upload(caminhoStorage, arquivo);
 
-        if (uploadError) {
-            throw new Error("Erro no upload: " + uploadError.message);
-        }
+        if (uploadError) throw new Error("Erro no upload: " + uploadError.message);
 
-        // 2. Obter a URL pública do arquivo enviado (Formato correto)
         const { data: urlData } = db.storage
             .from('comprovantes')
             .getPublicUrl(caminhoStorage);
 
         const urlPublica = urlData.publicUrl;
 
-        // 3. Atualizar a tabela 'clientes' no banco com a URL e mudar o status para 'Pago'
         const { error: updateError } = await db
             .from('clientes')
             .update({ 
@@ -795,13 +789,10 @@
             })
             .eq('id', clienteId);
 
-        if (updateError) {
-            throw new Error("Erro ao atualizar cliente: " + updateError.message);
-        }
+        if (updateError) throw new Error("Erro ao atualizar cliente: " + updateError.message);
 
         alert("Comprovante enviado com sucesso e status atualizado para Pago!");
         
-        // Recarregar os dados e re-renderizar a tela
         await carregarDadosSilencioso();
         renderizar();
 
@@ -998,7 +989,7 @@
             document.body.removeChild(link);
         }
 
-        // Modais
+       // Modais
         function abrirModal() { document.getElementById('modal').classList.remove('hidden'); }
         function fecharModal() { document.getElementById('modal').classList.add('hidden'); }
         function abrirModalLote() { document.getElementById('texto-lote').value = ''; document.getElementById('modal-lote').classList.remove('hidden'); }
@@ -1006,7 +997,41 @@
         function abrirModalFaixas() { document.getElementById('modal-faixas').classList.remove('hidden'); }
         function fecharModalFaixas() { document.getElementById('modal-faixas').classList.add('hidden'); }
 
+        function abrirModalComprovante(url) {
+            const container = document.getElementById('container-conteudo-comprovante');
+            container.innerHTML = ''; // Limpa conteúdo anterior
+
+            // Verifica se é PDF ou Imagem com base na URL
+            const isPdf = url.toLowerCase().includes('.pdf');
+
+            if (isPdf) {
+                container.innerHTML = `<embed src="${url}" type="application/pdf" class="w-full h-[500px] rounded-lg">`;
+            } else {
+                container.innerHTML = `<img src="${url}" alt="Comprovante" class="max-w-full max-h-[500px] object-contain rounded-lg">`;
+            }
+
+            document.getElementById('modal-comprovante').classList.remove('hidden');
+        }
+
+        function fecharModalComprovante() {
+            document.getElementById('modal-comprovante').classList.add('hidden');
+            document.getElementById('container-conteudo-comprovante').innerHTML = '';
+        }
+        
         window.onload = carregarDados;
     </script>
+
+    <!-- Modal de Visualização de Comprovante (Coloque aqui no final) -->
+    <div id="modal-comprovante" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 relative flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+                <h3 class="text-sm font-bold text-slate-800">Visualizar Comprovante</h3>
+                <button onclick="fecharModalComprovante()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
+            </div>
+            <div id="container-conteudo-comprovante" class="flex-1 overflow-auto flex items-center justify-center bg-slate-50 rounded-xl p-2 min-h-[350px]">
+                <!-- O conteúdo (imagem ou pdf) será injetado aqui via JavaScript -->
+            </div>
+        </div>
+    </div>
 </body>
 </html>
