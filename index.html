@@ -63,10 +63,14 @@
                 <p class="text-[11px] text-slate-400 leading-relaxed">
                     Tags: <code class="text-indigo-400 bg-slate-900 px-1 py-0.5 rounded">{nome}</code>, <code class="text-indigo-400 bg-slate-900 px-1 py-0.5 rounded">{valor}</code>, <code class="text-indigo-400 bg-slate-900 px-1 py-0.5 rounded">{faixa}</code>
                 </p>
-                <textarea id="template-mensagem" class="w-full h-28 bg-slate-900 text-slate-200 text-xs p-3 rounded-xl border border-slate-700 outline-none focus:border-indigo-500 transition resize-none"></textarea>
-                <button data-admin-only onclick="salvarTemplate()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-md flex items-center justify-center gap-1.5">
-                    💾 Salvar Template
-                </button>
+                <select id="template-seletor" onchange="selecionarTemplate(this.value)" class="w-full bg-slate-900 text-slate-200 text-xs p-2.5 rounded-lg border border-slate-700 outline-none"></select>
+                <input id="template-nome" data-admin-only type="text" placeholder="Nome do template (ex.: Preventivo)" class="w-full bg-slate-900 text-slate-200 text-xs p-2.5 rounded-lg border border-slate-700 outline-none">
+                <textarea id="template-mensagem" class="w-full h-28 bg-slate-900 text-slate-200 text-xs p-3 rounded-xl border border-slate-700 outline-none focus:border-indigo-500 transition resize-y"></textarea>
+                <div class="grid grid-cols-2 gap-2">
+                    <button data-admin-only onclick="novoTemplate()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2.5 rounded-xl transition">＋ Novo template</button>
+                    <button data-admin-only onclick="salvarTemplate()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl transition">💾 Salvar</button>
+                </div>
+                <button data-admin-only onclick="excluirTemplate()" class="w-full text-rose-300 hover:text-white text-[11px] py-1">Excluir template selecionado</button>
             </div>
         </div>
 
@@ -92,11 +96,11 @@
             </div>
             
             <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
-                <button onclick="exportarExcel()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs">
-                    📊 Exportar Excel
-                </button>
                 <button onclick="abrirModalFaixas()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs">
                     📈 Faixas & Operadores
+                </button>
+                <button data-admin-only onclick="abrirModalConsolidado()" class="bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs">
+                    📊 Consolidado Geral
                 </button>
                 <button data-admin-only onclick="excluirTodos()" class="bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs">
                     🗑️ Limpar Aba
@@ -196,7 +200,7 @@
 
         <!-- FILTROS E BUSCA DA TABELA -->
         <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80">
-            <input type="text" id="filtro-busca" onkeyup="renderizar()" placeholder="🔍 Buscar nome, telefone ou operador..." class="px-4 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:border-indigo-500 transition w-full md:w-80 bg-slate-50">
+            <input type="text" id="filtro-busca" oninput="agendarBusca()" placeholder="🔍 Buscar nome, telefone ou operador..." class="px-4 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:border-indigo-500 transition w-full md:w-80 bg-slate-50">
             
             <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto">
                 <button id="btn-status-Todos" onclick="mudarFiltroStatus('Todos')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition bg-slate-800 text-white whitespace-nowrap shadow-xs">Todos</button>
@@ -229,9 +233,39 @@
                     </tbody>
                 </table>
             </div>
+            <div id="paginacao-clientes" class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 p-3 text-xs text-slate-500">
+                <span id="paginacao-info">0 clientes</span>
+                <div class="flex gap-2"><button id="pagina-anterior" onclick="mudarPagina(-1)" class="px-3 py-1.5 rounded-lg border border-slate-200 disabled:opacity-40">← Anterior</button><span id="paginacao-pagina" class="px-2 py-1.5">1 / 1</span><button id="pagina-proxima" onclick="mudarPagina(1)" class="px-3 py-1.5 rounded-lg border border-slate-200 disabled:opacity-40">Próxima →</button></div>
+            </div>
         </div>
 
     </main>
+
+    <!-- ================= MODAL: CONSOLIDADO GERAL (ADMIN) ================= -->
+    <div id="modal-consolidado" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 z-[55] hidden">
+        <div class="bg-white rounded-2xl max-w-6xl w-full p-5 md:p-7 shadow-2xl max-h-[94vh] overflow-y-auto space-y-5">
+            <div class="flex justify-between items-start gap-3 border-b border-slate-100 pb-4">
+                <div><h3 class="text-lg font-black text-slate-800">📊 Consolidado Geral</h3><p class="text-xs text-slate-500 mt-1">Resumo de todas as abas e carteiras do sistema.</p></div>
+                <button onclick="fecharModalConsolidado()" class="text-slate-400 hover:text-slate-700 font-bold text-xl">✕</button>
+            </div>
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                <div class="rounded-xl bg-slate-50 border border-slate-200 p-4"><p class="text-[10px] uppercase font-bold text-slate-500">Abas</p><p id="geral-qtd-abas" class="text-xl font-black text-slate-800">0</p></div>
+                <div class="rounded-xl bg-slate-50 border border-slate-200 p-4"><p class="text-[10px] uppercase font-bold text-slate-500">Clientes</p><p id="geral-clientes" class="text-xl font-black text-slate-800">0</p></div>
+                <div class="rounded-xl bg-slate-50 border border-slate-200 p-4"><p class="text-[10px] uppercase font-bold text-slate-500">Total da base</p><p id="geral-total" class="text-sm md:text-base font-black text-slate-800">R$ 0,00</p></div>
+                <div class="rounded-xl bg-emerald-50 border border-emerald-200 p-4"><p class="text-[10px] uppercase font-bold text-emerald-700">Valor pago</p><p id="geral-pago" class="text-sm md:text-base font-black text-emerald-700">R$ 0,00</p></div>
+                <div class="rounded-xl bg-amber-50 border border-amber-200 p-4"><p class="text-[10px] uppercase font-bold text-amber-700">Em aberto</p><p id="geral-aberto" class="text-sm md:text-base font-black text-amber-700">R$ 0,00</p></div>
+            </div>
+            <div class="rounded-2xl border border-violet-200 bg-violet-50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div><p class="text-xs font-black uppercase tracking-wide text-violet-700">Percentual de reversão total</p><p class="text-[11px] text-violet-600">Valor pago ÷ valor total da base, considerando todas as abas.</p></div>
+                <p id="geral-reversao" class="text-3xl font-black text-violet-800">0,0%</p>
+            </div>
+            <section class="border border-slate-200 rounded-2xl p-4 md:p-5 space-y-4">
+                <div><h4 class="text-sm font-black text-slate-800">💰 Valor pago por faixa</h4><p class="text-[11px] text-slate-500">Valores somados entre todas as abas.</p></div>
+                <div id="grafico-pago-faixas" class="space-y-3"></div>
+            </section>
+            <div class="flex justify-end"><button onclick="fecharModalConsolidado()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-5 py-2.5 rounded-xl">Fechar</button></div>
+        </div>
+    </div>
 
     <!-- ================= MODAL: FAIXAS & OPERADORES ================= -->
     <div id="modal-faixas" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
@@ -361,6 +395,11 @@
         let usuarioAtual = null;
         let isAdmin = false;
         let canalRealtime = null;
+        let listaTemplates = [];
+        let templateSelecionadoId = 'padrao';
+        let paginaAtual = 1;
+        const CLIENTES_POR_PAGINA = 100;
+        let timerBusca = null;
 
         const TODAS_FAIXAS = [
             'C | 61 a 90',
@@ -408,8 +447,16 @@
                 const { data, error } = await db.auth.signInWithPassword({ email, password: senha });
                 if (error) throw error;
                 usuarioAtual = data.user;
-                // A role deve ser configurada no app_metadata da conta no Supabase.
-                isAdmin = usuarioAtual?.app_metadata?.role === 'admin';
+                // Somente contas explicitamente marcadas como admin ou operador podem entrar.
+                const role = usuarioAtual?.app_metadata?.role;
+                if (!['admin', 'operador'].includes(role)) {
+                    await db.auth.signOut();
+                    usuarioAtual = null;
+                    isAdmin = false;
+                    mostrarErroLogin('Esta conta não tem um perfil de acesso configurado. Fale com o administrador.');
+                    return;
+                }
+                isAdmin = role === 'admin';
                 aplicarPermissoes();
                 await carregarDados();
             } catch (error) {
@@ -440,15 +487,31 @@
             const { data } = await db.auth.getSession();
             if (data?.session?.user) {
                 usuarioAtual = data.session.user;
-                isAdmin = usuarioAtual?.app_metadata?.role === 'admin';
-                aplicarPermissoes();
-                await carregarDados();
+                const role = usuarioAtual?.app_metadata?.role;
+                if (!['admin', 'operador'].includes(role)) {
+                    await db.auth.signOut();
+                    usuarioAtual = null;
+                    isAdmin = false;
+                    mostrarErroLogin('Esta conta não tem um perfil de acesso configurado. Fale com o administrador.');
+                } else {
+                    isAdmin = role === 'admin';
+                    aplicarPermissoes();
+                    await carregarDados();
+                }
             }
 
             db.auth.onAuthStateChange(async (_event, session) => {
                 if (!session?.user) return;
+                const role = session.user?.app_metadata?.role;
+                if (!['admin', 'operador'].includes(role)) {
+                    usuarioAtual = null;
+                    isAdmin = false;
+                    await db.auth.signOut();
+                    mostrarErroLogin('Esta conta não tem um perfil de acesso configurado. Fale com o administrador.');
+                    return;
+                }
                 usuarioAtual = session.user;
-                isAdmin = usuarioAtual?.app_metadata?.role === 'admin';
+                isAdmin = role === 'admin';
                 aplicarPermissoes();
             });
         }
@@ -493,16 +556,7 @@
                     comprovante_url: c.comprovante_url || ''
                 }));
 
-                try {
-                    const { data: dataConfig, error: errConfig } = await db.from('configuracoes').select('*').eq('chave', 'templateMsg').single();
-                    if (!errConfig && dataConfig) {
-                        templateMsg = dataConfig.valor;
-                    }
-                } catch (e) {
-                    console.warn("Configurações não carregadas do banco.");
-                }
-                
-                document.getElementById('template-mensagem').value = templateMsg;
+                await carregarTemplates();
 
                 atualizarStatusConexao(true, "Sincronizado em Tempo Real");
                 renderizarAbas();
@@ -516,10 +570,11 @@
         }
 
         function assinarRealtime() {
-            db.channel('custom-all-channel')
-                .on('postgres_changes', { event: '*', schema: 'public' }, payload => {
+            if (canalRealtime) return;
+            canalRealtime = db.channel('custom-all-channel')
+                .on('postgres_changes', { event: '*', schema: 'public' }, () => {
                     clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(() => { carregarDadosSilencioso(); }, 600);
+                    debounceTimer = setTimeout(() => { carregarDadosSilencioso(); }, 900);
                 })
                 .subscribe();
         }
@@ -546,6 +601,7 @@
                     operador: c.operador || 'Não atribuído',
                     comprovante_url: c.comprovante_url || ''
                 }));
+                renderizarAbas();
                 renderizar();
             }
         }
@@ -589,6 +645,7 @@
 
         function selecionarAba(id) {
             abaAtivaId = id;
+            paginaAtual = 1;
             statusAtivo = 'Todos';
             renderizarAbas();
             renderizar();
@@ -623,9 +680,12 @@
         function renderizarAbas() {
             const container = document.getElementById('container-abas');
             container.innerHTML = '';
+            // Conta clientes em uma única passagem, evitando varrer toda a base para cada aba.
+            const contagemPorAba = new Map();
+            clientes.forEach(c => contagemPorAba.set(c.abaId, (contagemPorAba.get(c.abaId) || 0) + 1));
             abas.forEach(aba => {
                 const isAtiva = aba.id === abaAtivaId;
-                const qtd = clientes.filter(c => c.abaId === aba.id).length;
+                const qtd = contagemPorAba.get(aba.id) || 0;
                 let btn = document.createElement('div');
                 btn.className = `group flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer border transition shadow-xs ${isAtiva ? 'bg-emerald-600 border-emerald-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`;
                 btn.onclick = () => selecionarAba(aba.id);
@@ -638,11 +698,98 @@
             });
         }
 
+        function nomeTemplateAtual() {
+            return (document.getElementById('template-nome')?.value || '').trim();
+        }
+
+        async function carregarTemplates() {
+            try {
+                const { data } = await db.from('configuracoes').select('*').in('chave', ['templatesMulti', 'templateSelecionado', 'templateMsg']);
+                const cfg = Object.fromEntries((data || []).map(x => [x.chave, x.valor]));
+                let salvos = [];
+                try { salvos = typeof cfg.templatesMulti === 'string' ? JSON.parse(cfg.templatesMulti) : (cfg.templatesMulti || []); } catch (_) {}
+                if (!Array.isArray(salvos) || !salvos.length) {
+                    const textoAntigo = cfg.templateMsg || templateMsg;
+                    salvos = [{ id: 'padrao', nome: 'Template padrão', texto: textoAntigo }];
+                }
+                listaTemplates = salvos.map((t, i) => ({ id: String(t.id || ('template_' + i)), nome: String(t.nome || ('Template ' + (i + 1))), texto: String(t.texto || '') }));
+                templateSelecionadoId = String(cfg.templateSelecionado || listaTemplates[0].id);
+                if (!listaTemplates.some(t => t.id === templateSelecionadoId)) templateSelecionadoId = listaTemplates[0].id;
+                aplicarTemplateSelecionado();
+                renderizarSeletorTemplates();
+            } catch (e) { console.warn('Templates não carregados:', e); }
+        }
+
+        function renderizarSeletorTemplates() {
+            const select = document.getElementById('template-seletor');
+            if (!select) return;
+            select.innerHTML = listaTemplates.map(t => `<option value="${t.id.replace(/"/g, '&quot;')}" ${t.id === templateSelecionadoId ? 'selected' : ''}>${t.nome.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</option>`).join('');
+            const atual = listaTemplates.find(t => t.id === templateSelecionadoId);
+            const nome = document.getElementById('template-nome');
+            if (nome) nome.value = atual?.nome || '';
+        }
+
+        function aplicarTemplateSelecionado() {
+            const atual = listaTemplates.find(t => t.id === templateSelecionadoId);
+            if (atual) templateMsg = atual.texto;
+            const area = document.getElementById('template-mensagem');
+            if (area) area.value = templateMsg;
+        }
+
+        function selecionarTemplate(id) {
+            const atual = listaTemplates.find(t => t.id === id);
+            if (!atual) return;
+            templateSelecionadoId = id;
+            aplicarTemplateSelecionado();
+            const nome = document.getElementById('template-nome');
+            if (nome) nome.value = atual.nome;
+            if (isAdmin) db.from('configuracoes').upsert({ chave: 'templateSelecionado', valor: templateSelecionadoId }).then(({error}) => { if (error) console.error(error); });
+        }
+
+        async function persistirTemplates() {
+            const a = await db.from('configuracoes').upsert({ chave: 'templatesMulti', valor: JSON.stringify(listaTemplates) });
+            const b = await db.from('configuracoes').upsert({ chave: 'templateSelecionado', valor: templateSelecionadoId });
+            if (a.error || b.error) throw (a.error || b.error);
+            await db.from('configuracoes').upsert({ chave: 'templateMsg', valor: templateMsg });
+        }
+
         async function salvarTemplate() {
             if (!exigirAdmin()) return;
-            templateMsg = document.getElementById('template-mensagem').value;
-            await db.from('configuracoes').upsert({ chave: 'templateMsg', valor: templateMsg });
-            alert("Template salvo com sucesso!");
+            const texto = document.getElementById('template-mensagem').value;
+            const nome = nomeTemplateAtual() || 'Template sem nome';
+            let atual = listaTemplates.find(t => t.id === templateSelecionadoId);
+            if (!atual) {
+                atual = { id: 'template_' + Date.now(), nome, texto };
+                listaTemplates.push(atual);
+                templateSelecionadoId = atual.id;
+            } else { atual.nome = nome; atual.texto = texto; }
+            templateMsg = texto;
+            try { await persistirTemplates(); renderizarSeletorTemplates(); alert('Template salvo com sucesso!'); }
+            catch (e) { console.error(e); alert('Não foi possível salvar os templates. Confira a conexão com o Supabase.'); }
+        }
+
+        function novoTemplate() {
+            if (!exigirAdmin()) return;
+            const nome = prompt('Nome do novo template:');
+            if (!nome || !nome.trim()) return;
+            const novo = { id: 'template_' + Date.now(), nome: nome.trim(), texto: 'Olá {nome}! Lembramos do seu título no valor de {valor} na faixa {faixa}.' };
+            listaTemplates.push(novo);
+            templateSelecionadoId = novo.id;
+            aplicarTemplateSelecionado();
+            renderizarSeletorTemplates();
+            document.getElementById('template-mensagem').focus();
+        }
+
+        async function excluirTemplate() {
+            if (!exigirAdmin()) return;
+            if (listaTemplates.length <= 1) return alert('Mantenha pelo menos um template salvo.');
+            const atual = listaTemplates.find(t => t.id === templateSelecionadoId);
+            if (!confirm(`Excluir o template "${atual?.nome || ''}"?`)) return;
+            listaTemplates = listaTemplates.filter(t => t.id !== templateSelecionadoId);
+            templateSelecionadoId = listaTemplates[0].id;
+            aplicarTemplateSelecionado();
+            renderizarSeletorTemplates();
+            try { await persistirTemplates(); } catch (e) { console.error(e); alert('Erro ao excluir o template.'); }
         }
 
         function ordenarClientes(lista) {
@@ -655,8 +802,14 @@
             });
         }
 
+        function agendarBusca() {
+            clearTimeout(timerBusca);
+            timerBusca = setTimeout(() => { paginaAtual = 1; renderizar(); }, 180);
+        }
+
         function mudarFiltroStatus(status) {
             statusAtivo = status;
+            paginaAtual = 1;
             ['Todos', 'Pendente', 'Acionado', 'Confirmado', 'Pago', 'Não vão pagar'].forEach(s => {
                 let el = document.getElementById(`btn-status-${s}`);
                 if (el) {
@@ -680,6 +833,51 @@
             return estilos[faixa] || 'bg-slate-50 border-slate-200 text-slate-800';
         }
 
+        function calcularDadosConsolidado() {
+            const numero = n => Number(n) || 0;
+            const total = clientes.reduce((s,c) => s + numero(c.valor), 0);
+            const pago = clientes.reduce((s,c) => s + (c.status === 'Pago' ? numero(c.valor) : 0), 0);
+            const aberto = clientes.reduce((s,c) => s + (['Pendente','Acionado'].includes(c.status) ? numero(c.valor) : 0), 0);
+            const porFaixa = TODAS_FAIXAS.map(faixa => ({
+                faixa,
+                valor: clientes.reduce((s,c) => s + ((c.faixaAtraso || 'C | 61 a 90') === faixa && c.status === 'Pago' ? numero(c.valor) : 0), 0)
+            }));
+            return { total, pago, aberto, porFaixa, reversao: total > 0 ? pago / total * 100 : 0 };
+        }
+
+        function atualizarConsolidadoGeral() {
+            const moeda = n => (n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            const dados = calcularDadosConsolidado();
+            const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+            set('geral-qtd-abas', abas.length.toLocaleString('pt-BR'));
+            set('geral-clientes', clientes.length.toLocaleString('pt-BR'));
+            set('geral-total', moeda(dados.total)); set('geral-pago', moeda(dados.pago)); set('geral-aberto', moeda(dados.aberto));
+            set('geral-reversao', `${dados.reversao.toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1})}%`);
+            const grafico = document.getElementById('grafico-pago-faixas');
+            if (grafico) {
+                const max = Math.max(...dados.porFaixa.map(x => x.valor), 0);
+                grafico.innerHTML = dados.porFaixa.map(item => {
+                    const pct = max > 0 ? item.valor / max * 100 : 0;
+                    return `<div class="grid grid-cols-1 sm:grid-cols-[140px_1fr_150px] items-center gap-2">
+                        <span class="text-xs font-bold text-slate-600">${item.faixa}</span>
+                        <div class="h-5 bg-slate-100 rounded-md overflow-hidden"><div class="h-full bg-emerald-500 rounded-md transition-all" style="width:${pct}%"></div></div>
+                        <span class="text-xs font-black text-emerald-700 sm:text-right">${moeda(item.valor)}</span>
+                    </div>`;
+                }).join('');
+            }
+        }
+
+        function abrirModalConsolidado() {
+            atualizarConsolidadoGeral();
+            document.getElementById('modal-consolidado')?.classList.remove('hidden');
+        }
+        function fecharModalConsolidado() { document.getElementById('modal-consolidado')?.classList.add('hidden'); }
+
+        function mudarPagina(delta) {
+            paginaAtual = Math.max(1, paginaAtual + delta);
+            renderizar();
+        }
+
         function renderizar() {
             const clientesDaAba = clientes.filter(c => c.abaId === abaAtivaId);
             const tbody = document.getElementById('tabela-clientes');
@@ -688,6 +886,19 @@
             let filtrados = clientesDaAba.filter(c => c.nome.toLowerCase().includes(termoBusca) || c.telefone.includes(termoBusca) || (c.operador && c.operador.toLowerCase().includes(termoBusca)));
             if (statusAtivo !== 'Todos') filtrados = filtrados.filter(c => c.status === statusAtivo);
             filtrados = ordenarClientes(filtrados);
+            const totalFiltrados = filtrados.length;
+            const totalPaginas = Math.max(1, Math.ceil(totalFiltrados / CLIENTES_POR_PAGINA));
+            paginaAtual = Math.min(paginaAtual, totalPaginas);
+            const inicioPagina = (paginaAtual - 1) * CLIENTES_POR_PAGINA;
+            const clientesPagina = filtrados.slice(inicioPagina, inicioPagina + CLIENTES_POR_PAGINA);
+            const pagInfo = document.getElementById('paginacao-info');
+            const pagNum = document.getElementById('paginacao-pagina');
+            const prev = document.getElementById('pagina-anterior');
+            const next = document.getElementById('pagina-proxima');
+            if (pagInfo) pagInfo.textContent = totalFiltrados ? `Exibindo ${inicioPagina + 1}–${Math.min(inicioPagina + CLIENTES_POR_PAGINA, totalFiltrados)} de ${totalFiltrados} clientes` : '0 clientes';
+            if (pagNum) pagNum.textContent = `${paginaAtual} / ${totalPaginas}`;
+            if (prev) prev.disabled = paginaAtual <= 1;
+            if (next) next.disabled = paginaAtual >= totalPaginas;
 
             const valorTotal = clientesDaAba.reduce((acc, curr) => acc + curr.valor, 0);
             const valorPago = clientesDaAba.filter(c => c.status === 'Pago').reduce((acc, curr) => acc + curr.valor, 0);
@@ -820,7 +1031,8 @@
                 return;
             }
 
-           filtrados.forEach(c => {
+           let linhasTabela = '';
+           clientesPagina.forEach(c => {
                 let badgeClass = 'bg-slate-100 text-slate-600 border-slate-200';
                 if(c.status === 'Acionado') badgeClass = 'bg-blue-50 text-blue-700 border-blue-200';
                 else if(c.status === 'Confirmado') badgeClass = 'bg-teal-50 text-teal-700 border-teal-200 font-bold';
@@ -872,8 +1084,9 @@
                         </td>
                     </tr>
                 `;
-                tbody.innerHTML += row;
+                linhasTabela += row;
             });
+            tbody.innerHTML = linhasTabela;
         }
 
         async function atualizarStatusCliente(id, status) {
@@ -1122,22 +1335,6 @@
                 clientes = clientes.filter(c => c.abaId !== abaAtivaId);
                 renderizar();
             }
-        }
-
-        function exportarExcel() {
-            let csv = "Nome,Telefone,Valor,Faixa de Atraso,Status,Motivo,Operador\n";
-            clientes.filter(c => c.abaId === abaAtivaId).forEach(c => {
-                let v = c.valor.toFixed(2).replace('.', ',');
-                csv += `"${c.nome}","${c.telefone}","${v}","${c.faixaAtraso}","${c.status}","${c.motivo}","${c.operador || 'Não atribuído'}"\n`;
-            });
-            let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            let link = document.createElement("a");
-            let nome = abas.find(a => a.id === abaAtivaId)?.nome || 'export';
-            link.href = URL.createObjectURL(blob);
-            link.download = `Clientes_${nome.replace(/[\/\\?%*:|"<>]/g, '-')}.csv`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
         }
 
        // Modais
