@@ -259,6 +259,15 @@
                 <div><p class="text-xs font-black uppercase tracking-wide text-violet-700">Percentual de reversão total</p><p class="text-[11px] text-violet-600">Valor pago ÷ valor total da base, considerando todas as abas.</p></div>
                 <p id="geral-reversao" class="text-3xl font-black text-violet-800">0,0%</p>
             </div>
+            <section class="border border-indigo-200 rounded-2xl p-4 md:p-5 space-y-4">
+                <div><h4 class="text-sm font-black text-slate-800">🏆 Ranking consolidado de operadores</h4><p class="text-[11px] text-slate-500">Pagamentos somados de todas as abas, ordenados do maior para o menor.</p></div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs min-w-[560px]">
+                        <thead><tr class="bg-slate-50 text-slate-500 uppercase tracking-wide"><th class="p-3 rounded-l-lg">Posição</th><th class="p-3">Operador</th><th class="p-3 text-right">Clientes pagos</th><th class="p-3 text-right">Valor pago</th><th class="p-3 text-right rounded-r-lg">% dos pagamentos</th></tr></thead>
+                        <tbody id="ranking-consolidado-operadores"><tr><td colspan="5" class="p-4 text-center text-slate-400">Carregando ranking...</td></tr></tbody>
+                    </table>
+                </div>
+            </section>
             <section class="border border-slate-200 rounded-2xl p-4 md:p-5 space-y-4">
                 <div><h4 class="text-sm font-black text-slate-800">💰 Valor pago por faixa</h4><p class="text-[11px] text-slate-500">Valores somados entre todas as abas.</p></div>
                 <div id="grafico-pago-faixas" class="space-y-3"></div>
@@ -846,6 +855,7 @@
         }
 
         function atualizarConsolidadoGeral() {
+            const numero = n => Number(n) || 0;
             const moeda = n => (n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             const dados = calcularDadosConsolidado();
             const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
@@ -853,6 +863,28 @@
             set('geral-clientes', clientes.length.toLocaleString('pt-BR'));
             set('geral-total', moeda(dados.total)); set('geral-pago', moeda(dados.pago)); set('geral-aberto', moeda(dados.aberto));
             set('geral-reversao', `${dados.reversao.toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1})}%`);
+            // Ranking consolidado: soma pagamentos de cada operador em todas as abas.
+            const rankingEl = document.getElementById('ranking-consolidado-operadores');
+            if (rankingEl) {
+                const porOperador = new Map();
+                clientes.forEach(c => {
+                    const nome = String(c.operador || 'Não atribuído').trim() || 'Não atribuído';
+                    if (!porOperador.has(nome)) porOperador.set(nome, { nome, clientes: 0, pagos: 0, valorPago: 0 });
+                    const item = porOperador.get(nome);
+                    if (c.status === 'Pago') {
+                        item.pagos += 1;
+                        item.valorPago += numero(c.valor);
+                    }
+                    item.clientes += 1;
+                });
+                const ranking = [...porOperador.values()].sort((a, b) => b.valorPago - a.valorPago || a.nome.localeCompare(b.nome, 'pt-BR'));
+                const escapar = valor => String(valor).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+                rankingEl.innerHTML = ranking.length ? ranking.map((item, i) => {
+                    const medalha = ['🥇','🥈','🥉'][i] || `#${i + 1}`;
+                    const pct = dados.pago > 0 ? item.valorPago / dados.pago * 100 : 0;
+                    return `<tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50"><td class="p-3 font-black text-indigo-700">${medalha}</td><td class="p-3 font-bold text-slate-800">${escapar(item.nome)}</td><td class="p-3 text-right">${item.pagos.toLocaleString('pt-BR')}</td><td class="p-3 text-right font-black text-emerald-700">${moeda(item.valorPago)}</td><td class="p-3 text-right font-semibold">${pct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}%</td></tr>`;
+                }).join('') : '<tr><td colspan="5" class="p-4 text-center text-slate-400">Nenhum operador encontrado.</td></tr>';
+            }
             const grafico = document.getElementById('grafico-pago-faixas');
             if (grafico) {
                 const max = Math.max(...dados.porFaixa.map(x => x.valor), 0);
