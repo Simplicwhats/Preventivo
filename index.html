@@ -201,7 +201,24 @@
         <!-- FILTROS E BUSCA DA TABELA -->
         <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80">
             <input type="text" id="filtro-busca" oninput="agendarBusca()" placeholder="🔍 Buscar nome, telefone ou operador..." class="px-4 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:border-indigo-500 transition w-full md:w-80 bg-slate-50">
-            
+
+            <details id="filtro-faixas-dropdown" class="relative w-full md:w-auto">
+                <summary class="list-none [&::-webkit-details-marker]:hidden cursor-pointer flex items-center justify-between gap-3 px-4 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 transition">
+                    <span id="resumo-filtro-faixas-texto">Faixas de atraso: Todas</span><span aria-hidden="true" class="text-slate-400">▾</span>
+                </summary>
+                <div id="opcoes-filtro-faixas" class="absolute left-0 top-full mt-2 z-30 w-full md:w-64 bg-white p-3 rounded-xl border border-slate-200 shadow-xl space-y-2">
+                    <p class="text-[10px] text-slate-500 pb-1">Selecione uma ou mais faixas:</p>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer"><input type="checkbox" value="C | 61 a 90" onchange="mudarFiltrosFaixa()" class="accent-indigo-600"> C | 61 a 90</label>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer"><input type="checkbox" value="D | 91 a 120" onchange="mudarFiltrosFaixa()" class="accent-indigo-600"> D | 91 a 120</label>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer"><input type="checkbox" value="E | 121 a 150" onchange="mudarFiltrosFaixa()" class="accent-indigo-600"> E | 121 a 150</label>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer"><input type="checkbox" value="F | 151 a 180" onchange="mudarFiltrosFaixa()" class="accent-indigo-600"> F | 151 a 180</label>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer"><input type="checkbox" value="G | 181 a 360" onchange="mudarFiltrosFaixa()" class="accent-indigo-600"> G | 181 a 360</label>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer"><input type="checkbox" value="H | 361 a 720" onchange="mudarFiltrosFaixa()" class="accent-indigo-600"> H | 361 a 720</label>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer"><input type="checkbox" value="+720 dias" onchange="mudarFiltrosFaixa()" class="accent-indigo-600"> +720 dias</label>
+                    <button type="button" onclick="limparFiltroFaixas()" class="w-full border-t border-slate-100 pt-2 text-left text-[11px] font-bold text-indigo-600 hover:text-indigo-800">Limpar seleção</button>
+                </div>
+            </details>
+
             <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto">
                 <button id="btn-status-Todos" onclick="mudarFiltroStatus('Todos')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition bg-slate-800 text-white whitespace-nowrap shadow-xs">Todos</button>
                 <button id="btn-status-Pendente" onclick="mudarFiltroStatus('Pendente')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-200 whitespace-nowrap">Pendente</button>
@@ -399,6 +416,7 @@
         let abaAtivaId = 'aba_padrao';
         let clientes = [];
         let statusAtivo = 'Todos';
+        let faixasAtivas = [];
         let templateMsg = "Olá {nome}! Lembramos do seu título no valor de {valor} na faixa {faixa}. Entre em contato conosco para regularizar seu débito e evitar demais encargos!";
         let debounceTimer = null;
         let usuarioAtual = null;
@@ -656,6 +674,9 @@
             abaAtivaId = id;
             paginaAtual = 1;
             statusAtivo = 'Todos';
+            faixasAtivas = [];
+            document.querySelectorAll('#opcoes-filtro-faixas input[type="checkbox"]').forEach(input => { input.checked = false; });
+            atualizarResumoFiltroFaixas();
             renderizarAbas();
             renderizar();
         }
@@ -816,6 +837,26 @@
             timerBusca = setTimeout(() => { paginaAtual = 1; renderizar(); }, 180);
         }
 
+        function mudarFiltrosFaixa() {
+            faixasAtivas = Array.from(document.querySelectorAll('#opcoes-filtro-faixas input[type="checkbox"]:checked')).map(input => input.value);
+            paginaAtual = 1;
+            atualizarResumoFiltroFaixas();
+            renderizar();
+        }
+
+        function atualizarResumoFiltroFaixas() {
+            const resumo = document.getElementById('resumo-filtro-faixas-texto');
+            if (!resumo) return;
+            if (faixasAtivas.length === 0) resumo.textContent = 'Faixas de atraso: Todas';
+            else if (faixasAtivas.length === 1) resumo.textContent = '1 faixa selecionada';
+            else resumo.textContent = `${faixasAtivas.length} faixas selecionadas`;
+        }
+
+        function limparFiltroFaixas() {
+            document.querySelectorAll('#opcoes-filtro-faixas input[type="checkbox"]').forEach(input => { input.checked = false; });
+            mudarFiltrosFaixa();
+        }
+
         function mudarFiltroStatus(status) {
             statusAtivo = status;
             paginaAtual = 1;
@@ -916,6 +957,7 @@
             const termoBusca = document.getElementById('filtro-busca').value.toLowerCase();
             
             let filtrados = clientesDaAba.filter(c => c.nome.toLowerCase().includes(termoBusca) || c.telefone.includes(termoBusca) || (c.operador && c.operador.toLowerCase().includes(termoBusca)));
+            if (faixasAtivas.length > 0) filtrados = filtrados.filter(c => faixasAtivas.includes(normalizarFaixa(c.faixaAtraso)));
             if (statusAtivo !== 'Todos') filtrados = filtrados.filter(c => c.status === statusAtivo);
             filtrados = ordenarClientes(filtrados);
             const totalFiltrados = filtrados.length;
