@@ -200,7 +200,7 @@
 
 
         <!-- ENVIO AUTOMÁTICO WHATSAPP -->
-        <section id="painel-envio-auto" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 space-y-3">
+        <section id="painel-envio-auto" data-admin-only class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 space-y-3">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h2 class="font-black text-slate-800 text-sm">⚡ Envio automático WhatsApp</h2>
@@ -1446,6 +1446,7 @@
         }
 
         async function adicionarContaWhatsApp() {
+            if (!exigirAdmin()) return;
             const botao = document.getElementById('btn-adicionar-whatsapp');
             try {
                 botao.disabled = true;
@@ -1466,6 +1467,7 @@
         }
 
         async function verificarAgenteWhatsApp() {
+            if (!exigirAdmin()) return;
             const badge = document.getElementById('agente-status');
             try {
                 const contas = await carregarContasWhatsApp();
@@ -1610,7 +1612,7 @@
                     document.getElementById('auto-progresso').style.width = (((i + 1) / fila.length) * 100) + '%';
                     renderizar();
                     if (i < fila.length - 1 && !envioAutoAbortar) {
-                        let restante = 30;
+                        let restante = 10;
                         while (restante > 0 && !envioAutoAbortar) {
                             document.getElementById('auto-mensagem').textContent =
                                 `Acionado ${i + 1}/${fila.length}. Próximo envio em ${restante}s...`;
@@ -1636,6 +1638,7 @@
         }
 
         function pararEnvioAutomatico() {
+            if (!exigirAdmin()) return;
             envioAutoAbortar = true;
             document.getElementById('auto-mensagem').textContent = 'Interrompendo após o envio em andamento...';
         }
