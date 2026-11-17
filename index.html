@@ -198,6 +198,56 @@
             </div>
         </div>
 
+
+        <!-- ENVIO AUTOMÁTICO WHATSAPP -->
+        <section id="painel-envio-auto" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 class="font-black text-slate-800 text-sm">⚡ Envio automático WhatsApp</h2>
+                    <p class="text-[11px] text-slate-500">Envia em sequência os clientes pendentes da aba atual usando o WhatsApp Web conectado no agente local.</p>
+                </div>
+                <span id="agente-status" class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700">Verificando agente...</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="rounded-xl bg-slate-50 p-3"><div class="text-[10px] text-slate-500">Na fila</div><b id="auto-total" class="text-lg">0</b></div>
+                <div class="rounded-xl bg-slate-50 p-3"><div class="text-[10px] text-slate-500">Enviados</div><b id="auto-enviados" class="text-lg text-emerald-600">0</b></div>
+                <div class="rounded-xl bg-slate-50 p-3"><div class="text-[10px] text-slate-500">Falhas</div><b id="auto-falhas" class="text-lg text-rose-600">0</b></div>
+            </div>
+            <div class="h-2.5 bg-slate-100 rounded-full overflow-hidden"><div id="auto-progresso" class="h-full bg-emerald-500 transition-all" style="width:0%"></div></div>
+            <div class="flex flex-wrap items-end gap-3">
+                <label class="text-xs font-semibold text-slate-600 flex flex-col gap-1">
+                    WhatsApp para esta campanha
+                    <select id="auto-conta-whatsapp" class="min-w-48 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800">
+                        <option value="whatsapp-1">WhatsApp 1 — verificando...</option>
+                    </select>
+                </label>
+                <button type="button" id="btn-adicionar-whatsapp" onclick="adicionarContaWhatsApp()" class="border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-bold px-4 py-2.5 rounded-xl">＋ Conectar outro WhatsApp</button>
+                <label class="text-xs font-semibold text-slate-600 flex flex-col gap-1">
+                    Quantos clientes enviar nesta rodada?
+                    <input id="auto-limite-clientes" type="number" min="1" max="500" value="5"
+                        class="w-28 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800"
+                        aria-label="Quantidade de clientes para enviar">
+                </label>
+                <button type="button" id="btn-auto-iniciar" onclick="window.iniciarEnvioAutomatico && window.iniciarEnvioAutomatico()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl">▶ Iniciar envio dos pendentes</button>
+                <button id="btn-auto-parar" onclick="pararEnvioAutomatico()" class="hidden bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl">■ Parar fila</button>
+                <button onclick="verificarAgenteWhatsApp()" class="border border-slate-200 text-slate-600 text-xs font-bold px-4 py-2.5 rounded-xl">↻ Verificar conexão</button>
+            </div>
+            <p id="auto-mensagem" class="text-[11px] text-slate-500" aria-live="polite">O agente precisa estar instalado e o WhatsApp Web conectado. A fila inclui somente clientes com status Pendente.</p>
+        </section>
+
+
+        <div id="modal-confirmar-envio" class="hidden fixed inset-0 z-[9999] bg-slate-950/60 items-center justify-center p-4">
+            <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl p-5 space-y-4">
+                <div class="text-base font-black text-slate-800">Confirmar envio automático</div>
+                <p id="modal-confirmar-texto" class="text-sm text-slate-600"></p>
+                <p class="text-xs text-slate-500">Confirme que os contatos autorizaram receber mensagens e que o texto está correto. O envio será feito um contato por vez.</p>
+                <div class="flex gap-2 justify-end">
+                    <button type="button" onclick="resolverConfirmacaoEnvio(false)" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-bold">Cancelar</button>
+                    <button type="button" onclick="resolverConfirmacaoEnvio(true)" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold">Confirmar e iniciar</button>
+                </div>
+            </div>
+        </div>
+
         <!-- FILTROS E BUSCA DA TABELA -->
         <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80">
             <input type="text" id="filtro-busca" oninput="agendarBusca()" placeholder="🔍 Buscar nome, telefone ou operador..." class="px-4 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:border-indigo-500 transition w-full md:w-80 bg-slate-50">
@@ -427,6 +477,8 @@
         let paginaAtual = 1;
         const CLIENTES_POR_PAGINA = 100;
         let timerBusca = null;
+        let envioAutoAtivo = false;
+        let envioAutoAbortar = false;
 
         const TODAS_FAIXAS = [
             'C | 61 a 90',
@@ -887,7 +939,7 @@
             const numero = n => Number(n) || 0;
             const total = clientes.reduce((s,c) => s + numero(c.valor), 0);
             const pago = clientes.reduce((s,c) => s + (c.status === 'Pago' ? numero(c.valor) : 0), 0);
-            const aberto = clientes.reduce((s,c) => s + (['Pendente','Acionado'].includes(c.status) ? numero(c.valor) : 0), 0);
+            const aberto = clientes.reduce((s,c) => s + (['Pendente','Acionado','Enviado'].includes(c.status) ? numero(c.valor) : 0), 0);
             const porFaixa = TODAS_FAIXAS.map(faixa => ({
                 faixa,
                 valor: clientes.reduce((s,c) => s + ((c.faixaAtraso || 'C | 61 a 90') === faixa && c.status === 'Pago' ? numero(c.valor) : 0), 0)
@@ -977,7 +1029,7 @@
             const valorTotal = clientesDaAba.reduce((acc, curr) => acc + curr.valor, 0);
             const valorPago = clientesDaAba.filter(c => c.status === 'Pago').reduce((acc, curr) => acc + curr.valor, 0);
             const valorConfirmado = clientesDaAba.filter(c => c.status === 'Confirmado').reduce((acc, curr) => acc + curr.valor, 0);
-            const valorAberto = clientesDaAba.filter(c => ['Pendente', 'Acionado'].includes(c.status)).reduce((acc, curr) => acc + curr.valor, 0);
+            const valorAberto = clientesDaAba.filter(c => ['Pendente', 'Acionado', 'Enviado'].includes(c.status)).reduce((acc, curr) => acc + curr.valor, 0);
             const valorRecusado = clientesDaAba.filter(c => c.status === 'Não vão pagar').reduce((acc, curr) => acc + curr.valor, 0);
             
             document.getElementById('card-valorpago').innerText = valorPago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -1023,7 +1075,7 @@
                     let vPagoOp = cOp.filter(c => c.status === 'Pago').reduce((a, b) => a + b.valor, 0);
                     let vConfOp = cOp.filter(c => c.status === 'Confirmado').reduce((a, b) => a + b.valor, 0);
                     let vRecOp = cOp.filter(c => c.status === 'Não vão pagar').reduce((a, b) => a + b.valor, 0);
-                    let vAbertoOp = cOp.filter(c => ['Pendente', 'Acionado'].includes(c.status)).reduce((a, b) => a + b.valor, 0);
+                    let vAbertoOp = cOp.filter(c => ['Pendente', 'Acionado', 'Enviado'].includes(c.status)).reduce((a, b) => a + b.valor, 0);
                     return { op, cOp, vPagoOp, vConfOp, vRecOp, vAbertoOp };
                 });
 
@@ -1063,7 +1115,7 @@
                 TODAS_FAIXAS.forEach(f => {
                     let cFaixa = clientesDaAba.filter(c => (c.faixaAtraso || 'C | 61 a 90') === f);
                     
-                    let cAberto = cFaixa.filter(c => ['Pendente', 'Acionado'].includes(c.status));
+                    let cAberto = cFaixa.filter(c => ['Pendente', 'Acionado', 'Enviado'].includes(c.status));
                     let vAberto = cAberto.reduce((a, b) => a + b.valor, 0);
                     
                     gridAberto.innerHTML += `
@@ -1108,7 +1160,8 @@
            let linhasTabela = '';
            clientesPagina.forEach(c => {
                 let badgeClass = 'bg-slate-100 text-slate-600 border-slate-200';
-                if(c.status === 'Acionado') badgeClass = 'bg-blue-50 text-blue-700 border-blue-200';
+                if(c.status === 'Enviado') badgeClass = 'bg-indigo-50 text-indigo-700 border-indigo-200';
+                else if(c.status === 'Acionado') badgeClass = 'bg-blue-50 text-blue-700 border-blue-200';
                 else if(c.status === 'Confirmado') badgeClass = 'bg-teal-50 text-teal-700 border-teal-200 font-bold';
                 else if(c.status === 'Pago') badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold';
                 else if(c.status === 'Não vão pagar') badgeClass = 'bg-rose-50 text-rose-700 border-rose-200';
@@ -1137,6 +1190,7 @@
                         <td class="p-4">
                             <select ${isAdmin ? '' : 'disabled'} onchange="atualizarStatusCliente(${c.id}, this.value)" class="text-xs font-bold px-2.5 py-1.5 rounded-xl border ${badgeClass} outline-none ${isAdmin ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}">
                                 <option value="Pendente" ${c.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
+                                <option value="Enviado" ${c.status === 'Enviado' ? 'selected' : ''}>Enviado</option>
                                 <option value="Acionado" ${c.status === 'Acionado' ? 'selected' : ''}>Acionado</option>
                                 <option value="Confirmado" ${c.status === 'Confirmado' ? 'selected' : ''}>✅ Confirmado</option>
                                 <option value="Pago" ${c.status === 'Pago' ? 'selected' : ''}>Pago</option>
@@ -1350,45 +1404,240 @@
             }
         }
 
+        function montarMensagemCliente(c) {
+            const v = Number(c.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            return templateMsg.replace(/{nome}/g, c.nome || '')
+                .replace(/{valor}/g, v)
+                .replace(/{faixa}/g, c.faixaAtraso || '');
+        }
+
+        function telefoneWhatsApp(c) {
+            let telefone = String(c.telefone || '').replace(/\D/g, '');
+            if (!telefone.startsWith('55')) telefone = '55' + telefone;
+            return telefone;
+        }
+
         async function acionarWhatsApp(id) {
             const c = clientes.find(cliente => cliente.id === id);
-
             if (!c) return;
+            const url = 'https://web.whatsapp.com/send?phone=' + telefoneWhatsApp(c) + '&text=' + encodeURIComponent(montarMensagemCliente(c));
+            window.open(url, '_blank', 'noopener');
+            alert('Conversa aberta com a mensagem preenchida. O status não será alterado automaticamente: marque como Acionado somente depois de confirmar o envio.');
+        }
 
-            const v = c.valor.toLocaleString('pt-BR', {
-                style: 'currency',
-                currency: 'BRL'
+        async function carregarContasWhatsApp() {
+            const select = document.getElementById('auto-conta-whatsapp');
+            if (!select) return [];
+            const selecionada = select.value || 'whatsapp-1';
+            const r = await fetch('http://127.0.0.1:8765/accounts');
+            if (!r.ok) throw new Error('Não foi possível listar as contas');
+            const d = await r.json();
+            const contas = d.accounts || [];
+            select.innerHTML = '';
+            contas.forEach(conta => {
+                const option = document.createElement('option');
+                option.value = conta.id;
+                option.textContent = `${conta.label} — ${conta.connected ? 'Conectado' : 'Leia o QR Code'}`;
+                select.appendChild(option);
             });
+            if (contas.some(c => c.id === selecionada)) select.value = selecionada;
+            else if (contas.length) select.value = contas[0].id;
+            return contas;
+        }
 
-            const mensagem = templateMsg
-                .replace(/{nome}/g, c.nome)
-                .replace(/{valor}/g, v)
-                .replace(/{faixa}/g, c.faixaAtraso);
-
-            let telefone = String(c.telefone).replace(/\D/g, '');
-
-            if (!telefone.startsWith('55')) {
-                telefone = '55' + telefone;
+        async function adicionarContaWhatsApp() {
+            const botao = document.getElementById('btn-adicionar-whatsapp');
+            try {
+                botao.disabled = true;
+                botao.textContent = 'Abrindo navegador...';
+                const r = await fetch('http://127.0.0.1:8765/accounts', { method: 'POST' });
+                const d = await r.json();
+                if (!r.ok) throw new Error(d.detail || 'Falha ao abrir nova conta');
+                await carregarContasWhatsApp();
+                document.getElementById('auto-conta-whatsapp').value = d.id;
+                document.getElementById('auto-mensagem').textContent = `${d.label}: leia o QR Code na nova janela do navegador. Depois clique em Verificar conexão.`;
+                await verificarAgenteWhatsApp();
+            } catch (e) {
+                alert('Não foi possível conectar outro WhatsApp. Verifique se o agente está aberto. ' + e.message);
+            } finally {
+                botao.disabled = false;
+                botao.textContent = '＋ Conectar outro WhatsApp';
             }
+        }
 
-            const urlWhatsApp =
-                'https://web.whatsapp.com/send?phone=' +
-                telefone +
-                '&text=' +
-                encodeURIComponent(mensagem);
+        async function verificarAgenteWhatsApp() {
+            const badge = document.getElementById('agente-status');
+            try {
+                const contas = await carregarContasWhatsApp();
+                const accountId = document.getElementById('auto-conta-whatsapp')?.value || 'whatsapp-1';
+                const conta = contas.find(c => c.id === accountId);
+                const pronto = !!conta?.connected;
+                badge.textContent = pronto ? `${conta.label} conectado` : (conta ? `${conta.label} · leia o QR Code` : 'Agente ativo · sem conta');
+                badge.className = 'text-[10px] font-bold px-2.5 py-1 rounded-lg ' + (pronto ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700');
+                return pronto;
+            } catch (e) {
+                badge.textContent = 'Agente offline';
+                badge.className = 'text-[10px] font-bold px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700';
+                return false;
+            }
+        }
 
-            window.open(urlWhatsApp, '_blank');
+        document.getElementById('auto-conta-whatsapp')?.addEventListener('change', verificarAgenteWhatsApp);
+        carregarContasWhatsApp().then(verificarAgenteWhatsApp).catch(() => {});
 
-            if (c.status === 'Pendente') {
-                c.status = 'Acionado';
+        function clientesPendentesDaAba() {
+            return clientes.filter(c =>
+                c.abaId === abaAtivaId &&
+                String(c.status || '').trim().toLowerCase() === 'pendente'
+            );
+        }
 
-                await db
-                    .from('clientes')
-                    .update({ status: 'Acionado' })
-                    .eq('id', id);
+        function atualizarResumoFila() {
+            const pendentes = clientesPendentesDaAba();
+            const validos = pendentes.filter(c => String(c.telefone || '').replace(/\D/g, '').length >= 10);
+            const total = document.getElementById('auto-total');
+            if (total) total.textContent = validos.length;
+            const msg = document.getElementById('auto-mensagem');
+            if (msg && !envioAutoAtivo) {
+                msg.textContent = `${pendentes.length} cliente(s) pendente(s) nesta aba; ${validos.length} com telefone válido para envio.`;
+            }
+            return validos;
+        }
 
+        let resolverModalEnvio = null;
+        function confirmarEnvioNaPagina(total) {
+            return new Promise(resolve => {
+                resolverModalEnvio = resolve;
+                const modal = document.getElementById('modal-confirmar-envio');
+                document.getElementById('modal-confirmar-texto').textContent =
+                    `Serão processados ${total} clientes pendentes da aba atual. Deseja iniciar?`;
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            });
+        }
+        function resolverConfirmacaoEnvio(aceito) {
+            const modal = document.getElementById('modal-confirmar-envio');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            if (resolverModalEnvio) {
+                const resolve = resolverModalEnvio;
+                resolverModalEnvio = null;
+                resolve(!!aceito);
+            }
+        }
+        window.resolverConfirmacaoEnvio = resolverConfirmacaoEnvio;
+
+        async function iniciarEnvioAutomatico() {
+            const statusEl = document.getElementById('auto-mensagem');
+            if (statusEl) statusEl.textContent = 'Iniciando verificação da fila...';
+            try {
+            if (!exigirAdmin()) {
+                if (statusEl) statusEl.textContent = 'Ação bloqueada: entre com uma conta administradora.';
+                return;
+            }
+            if (envioAutoAtivo) {
+                if (statusEl) statusEl.textContent = 'Já existe um envio em andamento.';
+                return;
+            }
+            const pendentes = clientesPendentesDaAba();
+            // Prioriza sempre os clientes pendentes de maior valor para o menor.
+            // A ordenação ocorre antes de aplicar o limite do lote (ex.: primeiros 5).
+            const elegiveis = atualizarResumoFila().slice().sort((a, b) => {
+                const valorA = Number(a.valor) || 0;
+                const valorB = Number(b.valor) || 0;
+                return valorB - valorA;
+            });
+            const limiteInformado = Number(document.getElementById('auto-limite-clientes')?.value || 5);
+            if (!Number.isInteger(limiteInformado) || limiteInformado < 1 || limiteInformado > 500) {
+                alert('Informe uma quantidade entre 1 e 500 clientes.');
+                return;
+            }
+            const fila = elegiveis.slice(0, limiteInformado);
+            if (!fila.length) {
+                const semTelefone = pendentes.filter(c => String(c.telefone || '').replace(/\D/g, '').length < 10).length;
+                alert(`Não há clientes aptos para envio nesta aba.\nPendentes: ${pendentes.length}\nCom telefone válido: 0\nSem telefone/telefone curto: ${semTelefone}\n\nConfira a aba selecionada e os telefones cadastrados.`);
+                return;
+            }
+            if (!(await confirmarEnvioNaPagina(fila.length))) return;
+            const pronto = await verificarAgenteWhatsApp();
+            if (!pronto) { alert('Inicie o agente no Windows e conecte o WhatsApp Web antes de enviar.'); return; }
+            envioAutoAtivo = true; envioAutoAbortar = false;
+            document.getElementById('btn-auto-iniciar').disabled = true;
+            document.getElementById('btn-auto-parar').classList.remove('hidden');
+            document.getElementById('auto-total').textContent = fila.length;
+            document.getElementById('auto-enviados').textContent = '0';
+            document.getElementById('auto-falhas').textContent = '0';
+            let enviados = 0, falhas = 0;
+            try {
+                for (let i = 0; i < fila.length; i++) {
+                    if (envioAutoAbortar) break;
+                    const c = fila[i];
+                    document.getElementById('auto-mensagem').textContent = `Enviando ${i + 1}/${fila.length}: ${c.nome}`;
+                    let mensagemJaEnviada = false;
+                    try {
+                        const resp = await fetch('http://127.0.0.1:8765/send', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                phone: telefoneWhatsApp(c),
+                                message: montarMensagemCliente(c),
+                                account_id: document.getElementById('auto-conta-whatsapp')?.value || 'whatsapp-1'
+                            })
+                        });
+                        const result = await resp.json();
+                        if (!resp.ok || !result.sent) throw new Error(result.detail || result.error || 'Envio não confirmado pelo agente');
+                        mensagemJaEnviada = true;
+                        const { data: atualizado, error: erroUpdate } = await db
+                            .from('clientes')
+                            .update({ status: 'Acionado' })
+                            .eq('id', c.id)
+                            .select('id,status')
+                            .maybeSingle();
+                        if (erroUpdate) throw new Error('Mensagem enviada, mas o Supabase recusou atualizar o status: ' + erroUpdate.message);
+                        if (!atualizado) throw new Error('Mensagem enviada, mas nenhum registro foi atualizado. Verifique o ID do cliente e as políticas RLS do Supabase.');
+                        c.status = 'Acionado';
+                        enviados++;
+                    } catch (err) {
+                        console.error('Falha no envio/atualização:', c.id, err);
+                        falhas++;
+                        if (mensagemJaEnviada) {
+                            document.getElementById('auto-mensagem').textContent =
+                                `A mensagem para ${c.nome} foi enviada, mas o status não foi salvo: ${err.message}. Fila pausada para evitar reenvio duplicado.`;
+                            envioAutoAbortar = true;
+                        }
+                    }
+                    document.getElementById('auto-enviados').textContent = enviados;
+                    document.getElementById('auto-falhas').textContent = falhas;
+                    document.getElementById('auto-progresso').style.width = (((i + 1) / fila.length) * 100) + '%';
+                    renderizar();
+                    if (i < fila.length - 1 && !envioAutoAbortar) {
+                        let restante = 30;
+                        while (restante > 0 && !envioAutoAbortar) {
+                            document.getElementById('auto-mensagem').textContent =
+                                `Acionado ${i + 1}/${fila.length}. Próximo envio em ${restante}s...`;
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            restante--;
+                        }
+                    }
+                }
+                document.getElementById('auto-mensagem').textContent = envioAutoAbortar
+                    ? `Fila interrompida. ${enviados} enviados e ${falhas} falhas.`
+                    : `Processo finalizado. ${enviados} enviados e ${falhas} falhas.`;
+            } finally {
+                envioAutoAtivo = false;
+                document.getElementById('btn-auto-iniciar').disabled = false;
+                document.getElementById('btn-auto-parar').classList.add('hidden');
                 renderizar();
             }
+            } catch (erroGeral) {
+                console.error('Erro ao iniciar envio automático:', erroGeral);
+                if (statusEl) statusEl.textContent = 'Erro ao iniciar: ' + (erroGeral?.message || String(erroGeral));
+                alert('Erro ao iniciar o envio automático: ' + (erroGeral?.message || String(erroGeral)));
+            }
+        }
+
+        function pararEnvioAutomatico() {
+            envioAutoAbortar = true;
+            document.getElementById('auto-mensagem').textContent = 'Interrompendo após o envio em andamento...';
         }
 
         async function removerCliente(id) {
@@ -1481,6 +1730,24 @@ window.fecharModalComprovante = function() {
     comprovanteEhPdf = false;
     comprovanteZoom = 100;
 };
+
+        // Garante acesso pelo botão HTML e atualiza a prévia após carregar os dados.
+        window.iniciarEnvioAutomatico = iniciarEnvioAutomatico;
+        window.verificarAgenteWhatsApp = verificarAgenteWhatsApp;
+        window.pararEnvioAutomatico = pararEnvioAutomatico;
+        const botaoAuto = document.getElementById('btn-auto-iniciar');
+        if (botaoAuto) {
+            botaoAuto.addEventListener('click', function(event) {
+                event.preventDefault();
+                window.iniciarEnvioAutomatico();
+            });
+        }
+        const renderizarOriginal = renderizar;
+        renderizar = function(...args) {
+            const resultado = renderizarOriginal.apply(this, args);
+            try { atualizarResumoFila(); } catch (e) { console.warn('Prévia da fila:', e); }
+            return resultado;
+        };
 
         window.onload = iniciarAutenticacao;
     </script>
