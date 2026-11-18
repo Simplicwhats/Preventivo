@@ -1,0 +1,2887 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRC WhatsApp | Gestão Preventiva e Atraso</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #15213c;
+            --muted: #71809b;
+            --line: #e1e8f3;
+            --panel: rgba(255, 255, 255, .88);
+            --navy: #0b1428;
+            --cyan: #27d7d0;
+            --violet: #8275ff;
+            --shadow-panel: 0 12px 32px rgba(40, 59, 99, .075), 0 2px 6px rgba(40, 59, 99, .035);
+        }
+
+        html { min-height: 100%; background: #eef2f9; }
+        body {
+            color: var(--ink);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            letter-spacing: -.012em;
+            background:
+                radial-gradient(ellipse at 82% 0%, rgba(123, 113, 255, .10), transparent 34rem),
+                radial-gradient(ellipse at 28% 42%, rgba(41, 215, 208, .07), transparent 32rem),
+                linear-gradient(145deg, #f3f6fb 0%, #edf1f8 52%, #f6f7fb 100%);
+        }
+
+        button, input, select, textarea { font: inherit; }
+        button { -webkit-tap-highlight-color: transparent; }
+        button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
+            outline: 3px solid rgba(48, 199, 205, .32);
+            outline-offset: 2px;
+        }
+
+        /* Login */
+        #tela-login {
+            overflow: hidden;
+            background:
+                radial-gradient(ellipse at 20% 12%, rgba(50, 209, 210, .20), transparent 34%),
+                radial-gradient(ellipse at 82% 85%, rgba(119, 99, 255, .26), transparent 38%),
+                linear-gradient(135deg, #081226, #111a37 55%, #10122c);
+        }
+        #tela-login::before, #tela-login::after {
+            content: "";
+            position: absolute;
+            width: 420px;
+            height: 420px;
+            border: 1px solid rgba(147, 170, 255, .13);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        #tela-login::before { top: -250px; right: -100px; box-shadow: 0 0 0 36px rgba(147,170,255,.025), 0 0 0 72px rgba(147,170,255,.02); }
+        #tela-login::after { bottom: -300px; left: -90px; width: 520px; height: 520px; box-shadow: 0 0 0 44px rgba(39,215,208,.025), 0 0 0 90px rgba(39,215,208,.018); }
+        #tela-login > div {
+            position: relative;
+            z-index: 1;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, .72);
+            border-radius: 30px;
+            background: rgba(255, 255, 255, .96);
+            box-shadow: 0 32px 90px rgba(0, 0, 0, .34), 0 0 0 8px rgba(255, 255, 255, .045);
+        }
+        #tela-login > div::before {
+            content: "";
+            display: block;
+            position: absolute;
+            inset: 0 0 auto;
+            height: 5px;
+            background: linear-gradient(90deg, #27d7d0, #6d85ff 55%, #a375ff);
+        }
+        #tela-login .mx-auto.w-16 {
+            width: 70px;
+            height: 70px;
+            border-radius: 22px;
+            background: linear-gradient(145deg, #28d4cf, #5367f2 58%, #7d63f5);
+            box-shadow: 0 12px 24px rgba(91, 102, 226, .28);
+        }
+        #tela-login h2 { color: #15213c; letter-spacing: -.04em; }
+        #tela-login form > div label { color: #465573; letter-spacing: .04em; text-transform: uppercase; }
+        #tela-login input {
+            border-color: #dfe6f1;
+            background: #f7f9fc;
+            border-radius: 14px;
+            color: #182540;
+            transition: border-color .2s, box-shadow .2s, background .2s;
+        }
+        #tela-login input:focus { border-color: #6a76f0; background: #fff; box-shadow: 0 0 0 4px rgba(106, 118, 240, .12); }
+        #btn-login {
+            border: 0;
+            background: linear-gradient(100deg, #347bdc, #5268ef 54%, #7864ed);
+            box-shadow: 0 10px 22px rgba(81, 105, 230, .24);
+            transition: transform .2s, box-shadow .2s, filter .2s;
+        }
+        #btn-login:hover { transform: translateY(-2px); box-shadow: 0 14px 26px rgba(81, 105, 230, .30); filter: saturate(1.12); }
+
+        /* Navigation rail */
+        #app-shell > aside {
+            position: sticky;
+            top: 14px;
+            align-self: flex-start;
+            width: 286px;
+            min-width: 286px;
+            min-height: calc(100vh - 28px);
+            margin: 14px 0 14px 14px;
+            padding: 24px 20px;
+            overflow: hidden;
+            border: 1px solid rgba(149, 175, 233, .15);
+            border-radius: 26px;
+            background:
+                radial-gradient(ellipse at 4% 0%, rgba(71, 120, 234, .20), transparent 45%),
+                radial-gradient(ellipse at 95% 74%, rgba(35, 203, 200, .10), transparent 38%),
+                linear-gradient(155deg, #111d38 0%, #0b1428 60%, #0c1830 100%);
+            box-shadow: 0 18px 44px rgba(21, 34, 68, .22), inset 1px 1px 0 rgba(255,255,255,.045);
+        }
+        #app-shell > aside::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            opacity: .18;
+            pointer-events: none;
+            background-image: linear-gradient(rgba(137, 160, 224, .12) 1px, transparent 1px), linear-gradient(90deg, rgba(137, 160, 224, .12) 1px, transparent 1px);
+            background-size: 34px 34px;
+            mask-image: linear-gradient(to bottom, black, transparent 76%);
+        }
+        #app-shell > aside > * { position: relative; z-index: 1; }
+        #app-shell > aside .w-10.h-10 {
+            width: 46px;
+            height: 46px;
+            border: 1px solid rgba(255,255,255,.28);
+            border-radius: 15px;
+            background: linear-gradient(145deg, #2bd5ce, #526df0 58%, #8265f3);
+            box-shadow: 0 8px 20px rgba(56, 111, 234, .28);
+        }
+        #app-shell > aside h1 { letter-spacing: -.035em; }
+        #app-shell > aside .bg-slate-800\/60 {
+            border-color: rgba(150, 174, 224, .15);
+            border-radius: 19px;
+            background: rgba(255,255,255,.055);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+        }
+        #app-shell > aside select, #app-shell > aside input, #app-shell > aside textarea {
+            border-color: rgba(159, 178, 224, .20);
+            border-radius: 12px;
+            background-color: rgba(5, 13, 29, .68);
+            color: #e5edff;
+        }
+        #app-shell > aside select:focus, #app-shell > aside input:focus, #app-shell > aside textarea:focus { border-color: #35d5d0; box-shadow: 0 0 0 3px rgba(53,213,208,.13); }
+        #app-shell > aside code { color: #63e2dc !important; background: rgba(4,12,29,.72) !important; }
+        #app-shell > aside .mt-6.pt-4 { border-color: rgba(159, 178, 224, .18); }
+        #app-shell > aside .bg-slate-800\/40 { border-color: rgba(159, 178, 224, .15); background: rgba(255,255,255,.045); }
+        #app-shell > aside button.bg-indigo-600 { background: linear-gradient(100deg, #357bdc, #6767ee); box-shadow: 0 6px 16px rgba(76, 104, 220, .22); }
+        #app-shell > aside button.bg-emerald-600 { background: linear-gradient(100deg, #00a99d, #1fc9b7); }
+
+        /* Main canvas and dashboard header */
+        main {
+            min-width: 0;
+            padding: 24px 28px !important;
+            gap: 19px !important;
+        }
+        main > header {
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
+            min-height: 112px;
+            padding: 23px 25px !important;
+            border: 1px solid rgba(150, 177, 241, .27) !important;
+            border-radius: 24px !important;
+            background:
+                radial-gradient(ellipse at 90% 0%, rgba(46, 210, 210, .17), transparent 40%),
+                linear-gradient(112deg, #111d38 0%, #16264b 58%, #22225a 100%) !important;
+            box-shadow: 0 16px 36px rgba(30, 47, 95, .18), inset 0 1px 0 rgba(255,255,255,.07) !important;
+        }
+        main > header::after {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            right: 18%;
+            top: -115px;
+            width: 270px;
+            height: 270px;
+            border: 1px solid rgba(126, 171, 255, .18);
+            border-radius: 50%;
+            box-shadow: 0 0 0 28px rgba(126,171,255,.035), 0 0 0 57px rgba(126,171,255,.025);
+        }
+        main > header h1 { color: #f3f7ff !important; font-size: clamp(1.2rem, 1.8vw, 1.55rem) !important; letter-spacing: -.045em; }
+        main > header p { color: #aebdda !important; }
+        main > header > div { position: relative; z-index: 1; }
+        main > header > div:last-child { gap: 8px !important; }
+        main > header button {
+            min-height: 37px;
+            border-radius: 11px !important;
+            box-shadow: none !important;
+            transition: transform .18s, filter .18s, box-shadow .18s;
+        }
+        main > header button:hover { transform: translateY(-2px); filter: saturate(1.12); box-shadow: 0 7px 16px rgba(0,0,0,.16) !important; }
+        main > header button.bg-emerald-600 { background: linear-gradient(100deg, #02ad9e, #20c8b7); color: #042d31; }
+        main > header button.bg-slate-800 { background: rgba(255,255,255,.11); border: 1px solid rgba(255,255,255,.16); color: #e9efff; }
+        main > header button.bg-white { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.15); color: #ffd4dc; }
+        main > header button.bg-indigo-50, main > header button.bg-violet-50 { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.15); color: #dce8ff; }
+        main > header .border-l { border-color: rgba(255,255,255,.18); }
+        main > header #usuario-nome { color: #f4f7ff; }
+        main > header #usuario-perfil { color: #9eafd0; }
+        main > header button.bg-slate-100 { background: rgba(255,255,255,.12); color: #edf2ff; }
+
+        /* Tabs */
+        main > div.flex.items-center.gap-3 { min-height: 42px; scrollbar-width: thin; }
+        #container-abas > div {
+            min-height: 38px;
+            padding: 8px 13px;
+            border-color: #dce4f1 !important;
+            border-radius: 12px !important;
+            background: rgba(255,255,255,.70) !important;
+            color: #52617e !important;
+            box-shadow: 0 2px 5px rgba(38,55,91,.04) !important;
+            transition: transform .18s, box-shadow .18s, background .18s;
+        }
+        #container-abas > div:hover { transform: translateY(-1px); box-shadow: 0 7px 16px rgba(38,55,91,.09) !important; }
+        #container-abas > div.bg-emerald-600 {
+            border-color: #3d8fe7 !important;
+            background: linear-gradient(110deg, #2188d9, #5868ed 70%, #7167ed) !important;
+            color: white !important;
+            box-shadow: 0 8px 18px rgba(79, 106, 221, .22) !important;
+        }
+        main > div.flex.items-center.gap-3 > button { border-color: #dce4f1; border-radius: 12px; color: #53617e; background: rgba(255,255,255,.72); }
+
+        /* Summary cards */
+        main > div:has(> div > #card-acionados) { gap: 14px !important; }
+        main > div:has(> div > #card-acionados) > div {
+            position: relative;
+            overflow: hidden;
+            min-height: 146px;
+            padding: 20px !important;
+            border: 1px solid var(--line) !important;
+            border-radius: 20px !important;
+            background: var(--panel) !important;
+            box-shadow: var(--shadow-panel) !important;
+            transition: transform .2s, box-shadow .2s;
+            backdrop-filter: blur(12px);
+        }
+        main > div:has(> div > #card-acionados) > div::before {
+            content: "";
+            position: absolute;
+            inset: 0 0 auto;
+            height: 3px;
+            background: linear-gradient(90deg, #34c8cd, #5179ef);
+        }
+        main > div:has(> div > #card-acionados) > div:nth-child(2)::before { background: linear-gradient(90deg, #37c7a4, #78d88a); }
+        main > div:has(> div > #card-acionados) > div:nth-child(3)::before { background: linear-gradient(90deg, #f1bd55, #ff8f69); }
+        main > div:has(> div > #card-acionados) > div:nth-child(4)::before { background: linear-gradient(90deg, #7275ed, #ba79ef); }
+        main > div:has(> div > #card-acionados) > div:hover { transform: translateY(-3px); box-shadow: 0 18px 34px rgba(40,59,99,.12) !important; }
+        main > div:has(> div > #card-acionados) p { color: #7886a0; }
+        main > div:has(> div > #card-acionados) h2 { color: #15213c; font-size: clamp(1.4rem, 2vw, 1.85rem); letter-spacing: -.045em; }
+        main > div:has(> div > #card-acionados) #card-pagantes, main > div:has(> div > #card-acionados) #card-valorpago { color: #078e79 !important; }
+        main > div:has(> div > #card-acionados) > div > div:first-child > span { border: 1px solid rgba(89,120,191,.08); border-radius: 12px; }
+
+        /* Progress and auto-send panels */
+        main > div:has(#texto-porcentagem), #painel-envio-auto {
+            border: 1px solid var(--line) !important;
+            border-radius: 20px !important;
+            background: var(--panel) !important;
+            box-shadow: var(--shadow-panel) !important;
+            backdrop-filter: blur(12px);
+        }
+        main > div:has(#texto-porcentagem) { padding: 20px 22px !important; }
+        main > div:has(#texto-porcentagem) > div:first-child span:first-child { color: #475671; letter-spacing: .08em; }
+        main > div:has(#texto-porcentagem) #texto-porcentagem { border: 1px solid rgba(4,163,130,.15); border-radius: 999px; }
+        main > div:has(#texto-porcentagem) .h-3\.5 { height: 13px; background: #e9eef6; }
+        #barra-pagos { background: linear-gradient(90deg, #13b58e, #38d1ad); }
+        #barra-confirmados { background: linear-gradient(90deg, #25bdb8, #65ded2); }
+        #barra-abertos { background: linear-gradient(90deg, #f2bd53, #ffd47c); }
+        #barra-recusados { background: linear-gradient(90deg, #f07887, #f7a0a6); }
+        main > div:has(#texto-porcentagem) .flex.flex-wrap.gap-6 { gap: 12px 24px; }
+        main > div:has(#texto-porcentagem) .flex.flex-wrap.gap-6 > div { padding: 7px 10px; border: 1px solid #edf0f6; border-radius: 10px; background: rgba(248,250,253,.78); }
+        #painel-envio-auto { padding: 19px !important; }
+        #painel-envio-auto h2 { color: #1b2947; font-size: 15px; }
+        #painel-envio-auto h2:first-letter { color: #6d68ed; }
+        #painel-envio-auto > div:nth-of-type(2) > div { border: 1px solid #e8edf5; background: #f7f9fc; }
+        #painel-envio-auto > div:nth-of-type(2) b { color: #1b2947; }
+        #painel-envio-auto input, #painel-envio-auto select { min-height: 40px; border-color: #dce4f0; border-radius: 11px; background-color: #f8fafd; }
+        #painel-envio-auto button { min-height: 40px; border-radius: 11px; transition: transform .18s, box-shadow .18s; }
+        #painel-envio-auto button:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(49,67,110,.10); }
+        #btn-auto-iniciar { background: linear-gradient(100deg, #00ab9a, #31c7a8); box-shadow: 0 7px 15px rgba(20,179,150,.18); }
+        #auto-progresso { background: linear-gradient(90deg, #24b99a, #5ad6ad); }
+
+        /* Search, filters and client table */
+        main > div:has(#filtro-busca) {
+            padding: 13px !important;
+            border: 1px solid var(--line) !important;
+            border-radius: 18px !important;
+            background: var(--panel) !important;
+            box-shadow: var(--shadow-panel) !important;
+            backdrop-filter: blur(12px);
+        }
+        #filtro-busca { min-height: 42px; border-color: #e0e7f1; border-radius: 12px; background: #f7f9fc; color: #1b2947; }
+        #filtro-busca:focus { background: white; border-color: #7483ed; box-shadow: 0 0 0 4px rgba(116,131,237,.11); }
+        #filtro-faixas-dropdown summary { min-height: 42px; border-color: #e0e7f1; border-radius: 12px; background: #f7f9fc; color: #4d5c78; }
+        #opcoes-filtro-faixas { border-color: #e0e7f1; border-radius: 15px; box-shadow: 0 18px 42px rgba(30,46,83,.16); }
+        #opcoes-filtro-faixas label { padding: 5px 6px; border-radius: 7px; }
+        #opcoes-filtro-faixas label:hover { background: #f1f5fb; }
+        main > div:has(#filtro-busca) > div.bg-slate-100 { border-color: #e4eaf3; background: #f0f3f8; }
+        main > div:has(#filtro-busca) button[id^="btn-status-"] { min-height: 33px; border-radius: 9px; transition: background .15s, color .15s, box-shadow .15s; }
+        main > div:has(#filtro-busca) button[id^="btn-status-"].bg-slate-800 { background: linear-gradient(100deg, #267bd0, #5c67e7) !important; color: white !important; box-shadow: 0 4px 11px rgba(75,100,213,.22); }
+        main > div:has(#filtro-busca) button[id^="btn-status-"]:not(.bg-slate-800) { color: #65738b; }
+        main > div:has(#tabela-clientes) {
+            border: 1px solid var(--line) !important;
+            border-radius: 20px !important;
+            background: var(--panel) !important;
+            box-shadow: var(--shadow-panel) !important;
+        }
+        #tabela-clientes thead, #tabela-clientes + thead { background: transparent; }
+        main > div:has(#tabela-clientes) thead { background: #f4f7fb; }
+        main > div:has(#tabela-clientes) thead th { padding: 14px 16px; border-bottom: 1px solid #e7edf5; color: #75839c; font-size: 10px; letter-spacing: .085em; }
+        #tabela-clientes tr { border-color: #edf1f6; transition: background .15s; }
+        #tabela-clientes tr:hover { background: #f5f9ff !important; }
+        #tabela-clientes td { padding-top: 14px; padding-bottom: 14px; color: #4d5c77; }
+        #tabela-clientes td .font-bold.text-slate-700 { color: #1e2a45; font-size: 12px; }
+        #tabela-clientes td .text-indigo-600 { color: #5868dc; }
+        #tabela-clientes td select { min-height: 31px; border-radius: 999px; border-width: 1px; }
+        #tabela-clientes td input[type="text"] { min-height: 32px; padding-inline: 8px; border-radius: 7px; }
+        #tabela-clientes td input[type="text"]:focus { background: #f8faff; }
+        #tabela-clientes td button.bg-emerald-100 { border: 1px solid #b9e9dc; background: #e7f8f2; color: #078568; }
+        #tabela-clientes td button.bg-emerald-100:hover { background: #d6f3e9; }
+        #paginacao-clientes { border-color: #e9edf4; }
+        #paginacao-clientes button { min-height: 34px; border-color: #dfe6f0; border-radius: 10px; background: #f8fafd; color: #51617d; }
+        #paginacao-clientes button:not(:disabled):hover { border-color: #a9b8eb; background: #eff3ff; }
+
+        /* Dialogs, reports and details */
+        .fixed.inset-0:not(.hidden) { backdrop-filter: blur(8px); }
+        #modal > div, #modal-lote > div, #modal-faixas > div, #modal-consolidado > div,
+        #modal-confirmar-envio > div, #modal-comprovante > div {
+            border: 1px solid rgba(220,229,242,.92);
+            border-radius: 22px;
+            box-shadow: 0 28px 80px rgba(10,23,51,.28), 0 5px 18px rgba(10,23,51,.08);
+        }
+        #modal > div, #modal-lote > div, #modal-faixas > div, #modal-consolidado > div, #modal-confirmar-envio > div { padding: 24px !important; }
+        #modal h2, #modal-lote h2, #modal-faixas h3, #modal-consolidado h3, #modal-confirmar-envio .text-base { color: #172541; letter-spacing: -.03em; }
+        #modal label { color: #4b5a75; }
+        #modal input, #modal select, #modal-lote textarea { border-color: #dfe6f0; border-radius: 11px; background: #f8fafd; color: #1c2944; }
+        #modal input:focus, #modal select:focus, #modal-lote textarea:focus { border-color: #6e7bef; background: white; box-shadow: 0 0 0 4px rgba(110,123,239,.10); }
+        #modal button[type="submit"], #modal-lote button.bg-slate-800, #modal-confirmar-envio button.bg-emerald-600 { background: linear-gradient(100deg, #2384d9, #6368e8); color: white; box-shadow: 0 7px 16px rgba(79,103,218,.20); }
+        #modal-faixas .bg-slate-50, #modal-consolidado .bg-slate-50 { border-color: #e8edf5; background: #f7f9fc; }
+        #modal-consolidado .bg-violet-50 { border-color: #dfdcff; background: linear-gradient(110deg, #f4f3ff, #f8f6ff); }
+        #modal-consolidado section { border-color: #e1e7f1; }
+        #modal-consolidado thead tr { background: #f3f6fb; }
+        #modal-comprovante > div { background: #fff; }
+        #modal-comprovante #container-conteudo-comprovante { background: #eef2f8; }
+        #modal-comprovante button { border-radius: 10px; }
+
+        /* Shared control polish */
+        main button, #modal button, #modal-lote button, #modal-faixas button, #modal-consolidado button { letter-spacing: -.01em; }
+        main input, main select, main textarea { color: #26334e; }
+        ::selection { color: #10243a; background: rgba(52, 204, 199, .26); }
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: rgba(195,205,221,.20); border-radius: 99px; }
+        ::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 99px; background: #bbc7db; background-clip: padding-box; }
+        ::-webkit-scrollbar-thumb:hover { background: #97a9c7; background-clip: padding-box; }
+
+        @media (max-width: 1100px) {
+            #app-shell > aside { width: 250px; min-width: 250px; padding: 20px 16px; }
+            main { padding: 20px !important; }
+            main > header { padding: 19px !important; }
+            main > header > div:last-child { max-width: 70%; }
+        }
+        @media (max-width: 767px) {
+            body { display: flex; flex-direction: column; gap: 0; }
+            #app-shell > aside { position: relative; top: auto; width: auto; min-width: 0; min-height: 0; margin: 10px 10px 0; padding: 17px; border-radius: 21px; }
+            #app-shell > aside > div:first-child { gap: 14px; }
+            #app-shell > aside .bg-slate-800\/60 { padding: 14px; }
+            #app-shell > aside textarea { height: 84px; }
+            #app-shell > aside .mt-6.pt-4 { margin-top: 13px; padding-top: 13px; }
+            main { padding: 14px 10px 22px !important; gap: 13px !important; }
+            main > header { min-height: 0; padding: 18px !important; border-radius: 20px !important; }
+            main > header > div:last-child { width: 100%; max-width: none; }
+            main > header .border-l { margin-left: 0; padding-left: 0; border-left: 0; }
+            main > div:has(> div > #card-acionados) > div { min-height: 127px; padding: 15px !important; border-radius: 17px !important; }
+            main > div:has(#texto-porcentagem) { padding: 16px !important; }
+            main > div:has(#texto-porcentagem) > div:first-child { align-items: flex-start; gap: 9px; }
+            main > div:has(#texto-porcentagem) > div:first-child span:first-child { font-size: 10px; line-height: 1.5; }
+            #painel-envio-auto { padding: 15px !important; }
+            main > div:has(#filtro-busca) { gap: 10px !important; }
+            main > div:has(#filtro-busca) > div.bg-slate-100 { max-width: 100%; }
+            main > div:has(#filtro-busca) button[id^="btn-status-"] { padding-inline: 9px; }
+            main > div:has(#tabela-clientes) { border-radius: 17px !important; }
+            #tabela-clientes td { padding: 12px; }
+            #modal > div, #modal-lote > div, #modal-faixas > div, #modal-consolidado > div, #modal-confirmar-envio > div { padding: 19px !important; border-radius: 19px; }
+            #modal-comprovante > div { height: 96vh; padding: 12px; border-radius: 18px; }
+        }
+        @media (max-width: 520px) {
+            main > div:has(> div > #card-acionados) { grid-template-columns: 1fr; }
+            main > div:has(> div > #card-acionados) > div { min-height: 112px; }
+            main > header h1 { font-size: 1.25rem !important; }
+            main > header > div:last-child { gap: 7px !important; }
+            main > header button { flex: 1 1 calc(50% - 7px); justify-content: center; }
+            main > div:has(#texto-porcentagem) .flex.flex-wrap.gap-6 > div { gap: 6px; font-size: 10px; }
+            #painel-envio-auto > div:nth-of-type(2) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            #painel-envio-auto > div:last-of-type { align-items: stretch; }
+            #painel-envio-auto > div:last-of-type > * { width: 100%; }
+            #painel-envio-auto input, #painel-envio-auto select { width: 100%; }
+            #paginacao-clientes { align-items: flex-start; }
+            #paginacao-clientes > div { width: 100%; justify-content: space-between; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+        }
+
+        /* Green-led theme and richer data visualizations */
+        :root {
+            --ink: #142c25;
+            --muted: #6b8479;
+            --line: #dcebe2;
+            --panel: rgba(255, 255, 255, .91);
+            --navy: #09251f;
+            --cyan: #53d89a;
+            --violet: #7eddaa;
+            --shadow-panel: 0 12px 32px rgba(26, 77, 54, .075), 0 2px 6px rgba(26, 77, 54, .04);
+        }
+        body {
+            background:
+                radial-gradient(ellipse at 82% 0%, rgba(42, 190, 117, .10), transparent 34rem),
+                radial-gradient(ellipse at 28% 42%, rgba(94, 211, 151, .075), transparent 32rem),
+                linear-gradient(145deg, #f2f7f3 0%, #edf4ef 52%, #f6f8f5 100%);
+        }
+        button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
+            outline-color: rgba(20, 173, 111, .34);
+        }
+        #tela-login {
+            background:
+                radial-gradient(ellipse at 20% 12%, rgba(48, 202, 130, .23), transparent 34%),
+                radial-gradient(ellipse at 82% 85%, rgba(25, 146, 105, .20), transparent 38%),
+                linear-gradient(135deg, #071a17, #0b2b24 55%, #0b201d);
+        }
+        #tela-login::before, #tela-login::after { border-color: rgba(123, 230, 173, .14); }
+        #tela-login::before { box-shadow: 0 0 0 36px rgba(123,230,173,.025), 0 0 0 72px rgba(123,230,173,.02); }
+        #tela-login::after { box-shadow: 0 0 0 44px rgba(39,215,144,.025), 0 0 0 90px rgba(39,215,144,.018); }
+        #tela-login > div::before { background: linear-gradient(90deg, #19b67b, #4ddc9c 55%, #a5e96d); }
+        #tela-login .mx-auto.w-16 {
+            background: linear-gradient(145deg, #17b678, #20c993 58%, #91d95e);
+            box-shadow: 0 12px 24px rgba(18, 157, 101, .28);
+        }
+        #tela-login input:focus { border-color: #20b77a; box-shadow: 0 0 0 4px rgba(32, 183, 122, .12); }
+        #btn-login { background: linear-gradient(100deg, #07936a, #13b77a 58%, #36ca86); box-shadow: 0 10px 22px rgba(12, 155, 104, .25); }
+        #btn-login:hover { box-shadow: 0 14px 26px rgba(12, 155, 104, .31); }
+
+        #app-shell > aside {
+            border-color: rgba(125, 218, 168, .16);
+            background:
+                radial-gradient(ellipse at 4% 0%, rgba(26, 170, 107, .23), transparent 45%),
+                radial-gradient(ellipse at 95% 74%, rgba(35, 203, 140, .11), transparent 38%),
+                linear-gradient(155deg, #10352b 0%, #09251f 60%, #0b2a22 100%);
+            box-shadow: 0 18px 44px rgba(13, 55, 39, .22), inset 1px 1px 0 rgba(255,255,255,.045);
+        }
+        #app-shell > aside::before {
+            background-image: linear-gradient(rgba(137, 224, 175, .11) 1px, transparent 1px), linear-gradient(90deg, rgba(137, 224, 175, .11) 1px, transparent 1px);
+        }
+        #app-shell > aside .w-10.h-10 {
+            background: linear-gradient(145deg, #18bd81, #14a975 58%, #a0dc62);
+            box-shadow: 0 8px 20px rgba(27, 171, 111, .28);
+        }
+        #app-shell > aside code { color: #75e8b1 !important; }
+        #app-shell > aside select:focus, #app-shell > aside input:focus, #app-shell > aside textarea:focus { border-color: #45d995; box-shadow: 0 0 0 3px rgba(69,217,149,.14); }
+        #app-shell > aside button.bg-indigo-600 { background: linear-gradient(100deg, #098b67, #10b879); }
+        #app-shell > aside button.bg-emerald-600 { background: linear-gradient(100deg, #07986c, #22c889); }
+
+        main { background: transparent; }
+        main > header {
+            border-color: rgba(108, 210, 155, .28) !important;
+            background:
+                radial-gradient(ellipse at 90% 0%, rgba(68, 218, 142, .18), transparent 40%),
+                linear-gradient(112deg, #103a2f 0%, #12513d 58%, #176447 100%) !important;
+            box-shadow: 0 16px 36px rgba(23, 82, 56, .19), inset 0 1px 0 rgba(255,255,255,.07) !important;
+        }
+        main > header::after { border-color: rgba(145, 231, 179, .20); box-shadow: 0 0 0 28px rgba(126,218,164,.04), 0 0 0 57px rgba(126,218,164,.025); }
+        main > header button.bg-emerald-600 { background: linear-gradient(100deg, #37d18a, #8fe36e); color: #103b2b; }
+        main > header button.bg-slate-800 { background: rgba(255,255,255,.12); }
+        #container-abas > div.bg-emerald-600 {
+            border-color: #12a971 !important;
+            background: linear-gradient(110deg, #079869, #12b879 70%, #48cf83) !important;
+            box-shadow: 0 8px 18px rgba(13, 159, 105, .23) !important;
+        }
+        main > div:has(> div > #card-acionados) > div::before { background: linear-gradient(90deg, #0eaa73, #53d797); }
+        main > div:has(> div > #card-acionados) > div:nth-child(2)::before { background: linear-gradient(90deg, #1cae76, #70d99a); }
+        main > div:has(> div > #card-acionados) > div:nth-child(3)::before { background: linear-gradient(90deg, #45be81, #9bd66b); }
+        main > div:has(> div > #card-acionados) > div:nth-child(4)::before { background: linear-gradient(90deg, #108c65, #5bc995); }
+        main > div:has(> div > #card-acionados) h2 { color: #173b2c; }
+        main > div:has(> div > #card-acionados) #card-pagantes, main > div:has(> div > #card-acionados) #card-valorpago { color: #07885d !important; }
+        main > div:has(#texto-porcentagem) #texto-porcentagem { color: #087449; background: #e1f6e9; border-color: #c3ebd1; }
+        #barra-pagos { background: linear-gradient(90deg, #079a68, #43d194); }
+        #barra-confirmados { background: linear-gradient(90deg, #30b88c, #72dcaa); }
+        #barra-abertos { background: linear-gradient(90deg, #efb84a, #f7d276); }
+        #barra-recusados { background: linear-gradient(90deg, #e77b83, #f1a0a0); }
+        #btn-auto-iniciar { background: linear-gradient(100deg, #07966b, #26c687); box-shadow: 0 7px 15px rgba(20,179,120,.2); }
+        #auto-progresso { background: linear-gradient(90deg, #0aa46d, #5bd69b); }
+        main > div:has(#filtro-busca) button[id^="btn-status-"].bg-slate-800 {
+            background: linear-gradient(100deg, #078c63, #17b979) !important;
+            box-shadow: 0 4px 11px rgba(13,151,100,.22);
+        }
+        main > div:has(#filtro-busca) button[id^="btn-status-"].bg-slate-800 { color: white !important; }
+        #filtro-busca:focus { border-color: #49bc85; box-shadow: 0 0 0 4px rgba(73,188,133,.12); }
+        #opcoes-filtro-faixas input[type="checkbox"] { accent-color: #0da36d; }
+        #modal button[type="submit"], #modal-lote button.bg-slate-800, #modal-confirmar-envio button.bg-emerald-600 {
+            background: linear-gradient(100deg, #078e64, #1abc7c);
+            box-shadow: 0 7px 16px rgba(21,151,101,.21);
+        }
+
+        .allocation-layout { display: grid; grid-template-columns: 148px minmax(0, 1fr); align-items: center; gap: 25px; }
+        .allocation-donut {
+            display: grid;
+            place-items: center;
+            width: 144px;
+            height: 144px;
+            margin-inline: auto;
+            border-radius: 50%;
+            background: conic-gradient(from -90deg,
+                #0a9c68 0 var(--pct-pagos, 0%),
+                #42c98f var(--pct-pagos, 0%) calc(var(--pct-pagos, 0%) + var(--pct-confirmados, 0%)),
+                #f0bb4c calc(var(--pct-pagos, 0%) + var(--pct-confirmados, 0%)) calc(var(--pct-pagos, 0%) + var(--pct-confirmados, 0%) + var(--pct-abertos, 100%)),
+                #e77b83 calc(var(--pct-pagos, 0%) + var(--pct-confirmados, 0%) + var(--pct-abertos, 100%)) 100%);
+            box-shadow: 0 10px 24px rgba(16, 104, 67, .14), inset 0 0 0 1px rgba(255,255,255,.65);
+            transition: background .5s ease;
+        }
+        .allocation-donut-hole {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 102px;
+            height: 102px;
+            border: 1px solid rgba(218, 235, 224, .9);
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 3px 12px rgba(24, 68, 47, .07);
+        }
+        .allocation-donut-hole strong { color: #08774f; font-size: 22px; line-height: 1.15; letter-spacing: -.05em; }
+        .allocation-donut-hole span { margin-top: 4px; color: #71877b; font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+        .allocation-details { min-width: 0; display: flex; flex-direction: column; gap: 15px; }
+        .allocation-details > div:first-child > div { flex-shrink: 0; }
+        .performance-row {
+            display: grid;
+            grid-template-columns: 142px minmax(110px, 1fr) 142px;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 11px;
+            border: 1px solid #e7efe9;
+            border-radius: 13px;
+            background: linear-gradient(100deg, #fbfdfb, #f5faf6);
+            transition: transform .18s, border-color .18s, box-shadow .18s;
+        }
+        .performance-row:hover { transform: translateX(2px); border-color: #c5e5d1; box-shadow: 0 6px 15px rgba(24,95,59,.07); }
+        .performance-label { display: flex; align-items: center; gap: 9px; color: #40594a; font-size: 11px; font-weight: 800; }
+        .performance-index { display: grid; place-items: center; width: 23px; height: 23px; flex: none; border-radius: 8px; background: #e3f5e9; color: #128255; font-size: 10px; }
+        .performance-track { height: 10px; overflow: hidden; border: 1px solid #e7f0e9; border-radius: 99px; background: #eaf2ec; box-shadow: inset 0 1px 2px rgba(30,75,48,.05); }
+        .performance-fill { height: 100%; min-width: 0; border-radius: 99px; background: linear-gradient(90deg, #0b9b67, #25c786 72%, #8dde7c); box-shadow: 0 2px 7px rgba(15,163,105,.20); transition: width .45s ease; }
+        .performance-value { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; }
+        .performance-value strong { color: #126c49; font-size: 11px; font-weight: 900; }
+        .performance-value span { color: #8a9b90; font-size: 9px; font-weight: 700; }
+        .mini-progress { height: 7px; overflow: hidden; margin: 10px 0 7px; border-radius: 99px; background: rgba(255,255,255,.7); box-shadow: inset 0 1px 2px rgba(31,65,46,.08); }
+        .mini-progress-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #0b9966, #43d191); box-shadow: 0 2px 6px rgba(15,151,99,.18); transition: width .45s ease; }
+        #grafico-pago-faixas { display: flex; flex-direction: column; gap: 8px; }
+        #grafico-pago-faixas > * { margin-top: 0 !important; }
+
+        @media (max-width: 767px) {
+            .allocation-layout { grid-template-columns: 1fr; gap: 17px; }
+            .allocation-donut { width: 128px; height: 128px; }
+            .allocation-donut-hole { width: 91px; height: 91px; }
+            .allocation-donut-hole strong { font-size: 19px; }
+            .performance-row { grid-template-columns: 1fr auto; gap: 8px 12px; }
+            .performance-track { grid-column: 1 / -1; grid-row: 2; }
+            .performance-value { grid-column: 2; grid-row: 1; }
+            .performance-label { grid-column: 1; grid-row: 1; }
+        }
+
+        /* Consistent motion and interaction finish across the workspace */
+        @keyframes workspace-rise-in {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes content-refresh-in {
+            0% { opacity: .58; transform: translateY(9px) scale(.992); filter: blur(2px); }
+            100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+        }
+        @keyframes tab-active-in {
+            0% { transform: scale(.96); }
+            65% { transform: scale(1.025); }
+            100% { transform: scale(1); }
+        }
+        @keyframes modal-backdrop-in {
+            from { opacity: 0; backdrop-filter: blur(0); }
+            to { opacity: 1; backdrop-filter: blur(8px); }
+        }
+        @keyframes modal-card-in {
+            0% { opacity: 0; transform: translateY(17px) scale(.975); }
+            70% { opacity: 1; transform: translateY(-2px) scale(1.003); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes modal-backdrop-out { to { opacity: 0; backdrop-filter: blur(0); } }
+        @keyframes modal-card-out { to { opacity: 0; transform: translateY(8px) scale(.985); } }
+        @keyframes menu-drop-in { from { opacity: 0; transform: translateY(-5px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes row-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        body.app-ready #app-shell > aside { animation: workspace-rise-in .48s cubic-bezier(.2,.75,.25,1) both; }
+        body.app-ready main > header { animation: workspace-rise-in .48s cubic-bezier(.2,.75,.25,1) .04s both; }
+        body.app-ready main > div:has(> div > #card-acionados) { animation: workspace-rise-in .48s cubic-bezier(.2,.75,.25,1) .10s both; }
+        body.app-ready main > div:has(#texto-porcentagem) { animation: workspace-rise-in .48s cubic-bezier(.2,.75,.25,1) .16s both; }
+        body.app-ready #painel-envio-auto { animation: workspace-rise-in .48s cubic-bezier(.2,.75,.25,1) .20s both; }
+        body.app-ready main > div:has(#filtro-busca) { animation: workspace-rise-in .48s cubic-bezier(.2,.75,.25,1) .23s both; }
+        body.app-ready main > div:has(#tabela-clientes) { animation: workspace-rise-in .48s cubic-bezier(.2,.75,.25,1) .27s both; }
+        main.tab-transition > div:has(> div > #card-acionados),
+        main.tab-transition > div:has(#texto-porcentagem),
+        main.tab-transition > #painel-envio-auto,
+        main.tab-transition > div:has(#filtro-busca),
+        main.tab-transition > div:has(#tabela-clientes) { animation: content-refresh-in .43s cubic-bezier(.2,.75,.25,1) both; }
+        main.tab-transition > div:has(#texto-porcentagem) { animation-delay: .035s; }
+        main.tab-transition > #painel-envio-auto { animation-delay: .07s; }
+        main.tab-transition > div:has(#filtro-busca) { animation-delay: .1s; }
+        main.tab-transition > div:has(#tabela-clientes) { animation-delay: .13s; }
+        main.tab-transition #container-abas > div.bg-emerald-600 { animation: tab-active-in .38s cubic-bezier(.2,.8,.2,1) both; }
+        #container-abas > div { will-change: transform; }
+        #container-abas > div:not(.bg-emerald-600):active { transform: scale(.97); }
+
+        .fixed.inset-0:not(.hidden) { animation: modal-backdrop-in .22s ease-out both; }
+        .fixed.inset-0:not(.hidden) > div { animation: modal-card-in .38s cubic-bezier(.2,.8,.2,1) both; transform-origin: center; }
+        .fixed.inset-0.modal-closing { animation: modal-backdrop-out .18s ease-in both !important; }
+        .fixed.inset-0.modal-closing > div { animation: modal-card-out .18s ease-in both !important; }
+        #filtro-faixas-dropdown[open] #opcoes-filtro-faixas { animation: menu-drop-in .18s cubic-bezier(.2,.75,.25,1) both; transform-origin: top left; }
+
+        main > header button, main button, #app-shell > aside button, .fixed.inset-0 button {
+            transition: transform .18s cubic-bezier(.2,.75,.25,1), box-shadow .2s ease, background-color .18s ease, color .18s ease, border-color .18s ease;
+        }
+        main button:not(:disabled):active, main > header button:not(:disabled):active,
+        #app-shell > aside button:not(:disabled):active, .fixed.inset-0 button:not(:disabled):active { transform: scale(.97); }
+        button:disabled { cursor: not-allowed; }
+        main > div:has(> div > #card-acionados) > div,
+        main > div:has(#texto-porcentagem), #painel-envio-auto,
+        main > div:has(#filtro-busca), main > div:has(#tabela-clientes) { transition: border-color .2s ease, box-shadow .22s ease, transform .22s ease; }
+        #painel-envio-auto:focus-within, main > div:has(#filtro-busca:focus) { border-color: #b9dfc8 !important; box-shadow: 0 14px 36px rgba(23,94,59,.10) !important; }
+        main > div:has(#tabela-clientes) { box-shadow: 0 14px 34px rgba(25,77,51,.085) !important; }
+        #tabela-clientes tr:not(:first-child) { animation: row-enter .25s ease-out both; }
+        #tabela-clientes tr:nth-child(2) { animation-delay: .025s; }
+        #tabela-clientes tr:nth-child(3) { animation-delay: .05s; }
+        #tabela-clientes tr:nth-child(4) { animation-delay: .075s; }
+        #tabela-clientes tr:nth-child(5) { animation-delay: .1s; }
+        #tabela-clientes tr:nth-child(6) { animation-delay: .125s; }
+        #tabela-clientes tr:nth-child(7) { animation-delay: .15s; }
+        #tabela-clientes tr:nth-child(8) { animation-delay: .175s; }
+        #modal-faixas #grid-operadores > div, #modal-faixas #grid-faixas-aberto > div, #modal-faixas #grid-faixas-pago > div {
+            transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+        }
+        #modal-faixas #grid-operadores > div:hover, #modal-faixas #grid-faixas-aberto > div:hover, #modal-faixas #grid-faixas-pago > div:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 22px rgba(25,77,51,.10);
+        }
+        #modal-consolidado section, #modal-faixas .bg-slate-50 { transition: border-color .2s ease, box-shadow .2s ease; }
+        #modal-consolidado section:hover { border-color: #c4e4d0; box-shadow: 0 8px 22px rgba(25,77,51,.055); }
+        main select, main input, main textarea, #modal input, #modal select, #modal-lote textarea {
+            transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            body.app-ready #app-shell > aside, body.app-ready main > header,
+            body.app-ready main > div:has(> div > #card-acionados), body.app-ready main > div:has(#texto-porcentagem),
+            body.app-ready #painel-envio-auto, body.app-ready main > div:has(#filtro-busca), body.app-ready main > div:has(#tabela-clientes) { animation-delay: 0s; }
+            main.tab-transition > div:has(> div > #card-acionados), main.tab-transition > div:has(#texto-porcentagem),
+            main.tab-transition > #painel-envio-auto, main.tab-transition > div:has(#filtro-busca),
+            main.tab-transition > div:has(#tabela-clientes) { animation-delay: 0s; }
+        }
+        /* Keep the faixa picker above the table and outside clipped scroll layers. */
+        main { overflow-x: visible !important; overflow-y: visible !important; }
+        main > div:has(#filtro-busca) { position: relative; z-index: 40; overflow: visible !important; }
+        main > div:has(#filtro-busca):has(#filtro-faixas-dropdown[open]) { z-index: 60; }
+        #filtro-faixas-dropdown { position: relative; z-index: 45; }
+        #opcoes-filtro-faixas { z-index: 70 !important; max-height: min(72vh, 520px); overflow-y: auto; }
+        main > div:has(#tabela-clientes) { position: relative; z-index: 1; }
+        #modal > div { max-height: 90vh; overflow-y: auto; }
+        #modal-lote > div { max-height: 90vh; overflow-y: auto; }
+        .client-contract { min-width: 126px; color: #27533d !important; background: #f8fcf9 !important; border-color: #dcebe2 !important; }
+        .client-contract:focus { border-color: #39b879 !important; box-shadow: 0 0 0 3px rgba(57,184,121,.12); background: #fff !important; }
+        .client-contract::placeholder { color: #91a397; font-family: inherit; font-size: 10px; }
+
+        /* Frame the supplied horizontal logo, trimming only its empty outer canvas. */
+        .site-logo-crop {
+            display: block;
+            flex: none;
+            overflow: hidden;
+            aspect-ratio: 3.55 / 1;
+            border: 1px solid rgba(226,235,228,.95);
+            background-color: #f8f9f6;
+            background-image: url('assets/simplic-logo-horizontal.jpeg');
+            background-repeat: no-repeat;
+            background-size: 148% auto;
+            background-position: center;
+            box-shadow: 0 8px 20px rgba(15,50,34,.12);
+        }
+        .site-logo-login { width: 240px; margin-bottom: 2px; border-radius: 14px; box-shadow: 0 10px 25px rgba(20,89,54,.12); }
+        .site-logo-sidebar { width: 106px; border-radius: 9px; }
+        .dashboard-title-row { display: flex; align-items: center; gap: 12px; }
+        .site-logo-dashboard { width: 120px; border-radius: 10px; }
+        .dashboard-intro-copy { min-width: 0; }
+        .dashboard-intro-copy h1 { white-space: normal; line-height: 1.1; }
+
+        /* Header: a clear title, grouped actions and a separate account chip. */
+        main > .dashboard-header {
+            display: grid !important;
+            grid-template-columns: minmax(270px, .85fr) minmax(0, 2fr) max-content;
+            align-items: center;
+            gap: 16px 22px;
+            min-height: 122px;
+            padding: 23px 25px !important;
+        }
+        .dashboard-intro { min-width: 0; }
+        .dashboard-kicker { display: block; margin-bottom: 7px; color: #8ee2b5; font-size: 9px; font-weight: 900; letter-spacing: .17em; }
+        .dashboard-intro h1 { white-space: nowrap; }
+        .dashboard-actions {
+            display: grid !important;
+            grid-template-columns: repeat(3, max-content);
+            justify-content: end;
+            align-items: center;
+            gap: 8px !important;
+            width: auto !important;
+            max-width: none !important;
+        }
+        .dashboard-actions button { min-height: 39px; white-space: nowrap; }
+        main > header .button-export-excel {
+            border: 1px solid rgba(145,235,186,.48);
+            background: rgba(137,229,176,.15);
+            color: #dfffea;
+        }
+        main > header .button-export-excel:hover { background: rgba(137,229,176,.25); }
+        main > .dashboard-header .dashboard-user {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            max-width: none !important;
+            margin: 0;
+            padding: 9px 10px 9px 13px;
+            border: 1px solid rgba(255,255,255,.16);
+            border-radius: 14px;
+            background: rgba(255,255,255,.075);
+        }
+        .dashboard-user-copy { min-width: 0; max-width: 150px; text-align: right; }
+        .dashboard-user-copy p:first-child { overflow: hidden; color: #f5fff8; font-size: 10px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+        .dashboard-user-copy p:last-child { margin-top: 3px; color: #a7d4b9; font-size: 8px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+        main > header .dashboard-logout { min-height: 34px; padding: 0 11px; border: 1px solid rgba(255,255,255,.10); background: rgba(255,255,255,.12); color: white; }
+
+        /* Template editor: editing tools, instant preview and quiet save feedback. */
+        #template-editor-card {
+            display: flex;
+            flex-direction: column;
+            gap: 11px;
+            padding: 17px 15px 14px;
+            border: 1px solid rgba(144,224,176,.21);
+            border-radius: 21px;
+            background: linear-gradient(155deg, rgba(255,255,255,.075), rgba(255,255,255,.035));
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.045), 0 12px 28px rgba(0,0,0,.10);
+        }
+        .template-editor-heading { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid rgba(162,209,178,.14); }
+        .template-kicker { display: block; color: #70d9a2; font-size: 8px; font-weight: 900; letter-spacing: .16em; }
+        .template-editor-heading h2 { margin-top: 4px; color: #f1fff6; font-size: 15px; font-weight: 900; letter-spacing: -.035em; }
+        .template-status-dot { width: 9px; height: 9px; border: 3px solid rgba(78,220,147,.28); border-radius: 50%; background: #54db99; box-shadow: 0 0 12px rgba(84,219,153,.55); }
+        .template-field-label { margin-bottom: -7px; color: #a7c9b5; font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+        .template-name-field:not(.hidden) { display: flex; flex-direction: column; gap: 10px; }
+        #template-editor-card .template-control {
+            width: 100%;
+            min-height: 39px;
+            padding: 10px 11px;
+            border: 1px solid rgba(157,198,174,.20);
+            border-radius: 11px;
+            outline: none;
+            background: rgba(4,17,15,.64);
+            color: #edf9f1;
+            font-size: 11px;
+            transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+        }
+        #template-editor-card .template-control:focus { border-color: rgba(78,220,147,.7); background: rgba(4,17,15,.82); box-shadow: 0 0 0 3px rgba(54,193,124,.12); }
+        #template-editor-card select.template-control { appearance: none; padding-right: 32px; background-image: linear-gradient(45deg, transparent 50%, #8ac8a1 50%), linear-gradient(135deg, #8ac8a1 50%, transparent 50%); background-position: calc(100% - 16px) 16px, calc(100% - 11px) 16px; background-size: 5px 5px; background-repeat: no-repeat; }
+        #template-editor-card .template-message { min-height: 122px; resize: vertical; line-height: 1.55; }
+        .template-variables:not(.hidden) { display: flex; flex-direction: column; gap: 7px; }
+        .template-variables > span { color: #a7c9b5; font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+        .template-variables > div { display: flex; flex-wrap: wrap; gap: 6px; }
+        .template-variables button {
+            padding: 5px 8px;
+            border: 1px solid rgba(93,221,151,.25);
+            border-radius: 8px;
+            background: rgba(52,179,111,.13);
+            color: #91edb4;
+            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+            font-size: 10px;
+            font-weight: 800;
+        }
+        .template-variables button:hover { border-color: rgba(93,221,151,.56); background: rgba(52,179,111,.22); }
+        .template-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: -5px; color: #7da18b; font-size: 8px; line-height: 1.4; }
+        #template-contagem { flex: none; color: #90c9a4; font-variant-numeric: tabular-nums; }
+        .template-preview-card { padding: 11px; border: 1px solid rgba(159,219,178,.17); border-radius: 13px; background: rgba(4,18,15,.48); }
+        .template-preview-title { display: flex; justify-content: space-between; margin-bottom: 8px; color: #7fca9d; font-size: 8px; font-weight: 900; letter-spacing: .13em; }
+        .template-preview-title span:last-child { color: #739280; font-weight: 700; letter-spacing: .02em; text-transform: none; }
+        #template-previa { min-height: 36px; color: #e0eee5; font-size: 10px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .template-feedback { min-height: 0; color: #a8d8b8; font-size: 9px; line-height: 1.4; }
+        .template-feedback.is-success { color: #74e3a1; }
+        .template-actions { display: grid; grid-template-columns: .8fr 1.25fr; gap: 8px; }
+        .template-actions button { min-height: 39px; border-radius: 11px; font-size: 10px; font-weight: 900; }
+        .template-new-button { border: 1px solid rgba(143,222,173,.26); background: rgba(255,255,255,.075); color: #dff5e6; }
+        .template-new-button:hover { background: rgba(255,255,255,.13); }
+        .template-save-button { background: linear-gradient(100deg, #0c9b69, #27c67e); color: #f4fff7; box-shadow: 0 7px 16px rgba(11,157,100,.20); }
+        .template-save-button:hover { box-shadow: 0 10px 20px rgba(11,157,100,.28); }
+        .template-delete-button { align-self: center; padding: 3px 8px; color: #eaa8aa; font-size: 9px; }
+        .template-delete-button:hover { color: #ffd1ce; }
+        #app-shell > aside { max-height: calc(100vh - 28px); overflow-x: hidden; overflow-y: auto; }
+
+        /* Give the two report panels a clear hierarchy and more useful comparison cues. */
+        #modal-consolidado > div { width: min(96vw, 1380px); max-width: 1380px; padding: 28px !important; border-radius: 26px; background: linear-gradient(180deg, #ffffff, #f8fcf9); }
+        #modal-faixas > div { width: min(95vw, 1240px); max-width: 1240px; padding: 28px !important; border-radius: 26px; background: linear-gradient(180deg, #ffffff, #f8fcf9); }
+        #modal-consolidado > div > div:first-child, #modal-faixas > div > div:first-child { position: sticky; top: -28px; z-index: 4; margin: -5px -5px 0; padding: 5px 5px 15px; background: rgba(255,255,255,.94); backdrop-filter: blur(12px); }
+        #modal-consolidado h3, #modal-faixas h3 { font-size: 21px; }
+        #modal-consolidado .grid-cols-2 { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+        #modal-consolidado .grid-cols-2 > div { position: relative; overflow: hidden; min-height: 106px; padding: 16px; border-radius: 17px; box-shadow: 0 4px 12px rgba(27,79,52,.045); transition: transform .2s ease, box-shadow .2s ease; }
+        #modal-consolidado .grid-cols-2 > div:hover { transform: translateY(-3px); box-shadow: 0 12px 22px rgba(27,79,52,.09); }
+        #modal-consolidado .grid-cols-2 > div::before { content: ""; position: absolute; inset: 0 0 auto; height: 3px; background: linear-gradient(90deg, #179d69, #70d89b); }
+        #modal-consolidado .grid-cols-2 > div p:last-child { margin-top: 11px; font-variant-numeric: tabular-nums; letter-spacing: -.035em; }
+        #modal-consolidado #geral-reversao { color: #08774f; font-variant-numeric: tabular-nums; }
+        #modal-consolidado section, #modal-faixas .bg-slate-50 { padding: 20px; border-radius: 19px; background: #fff; box-shadow: 0 5px 16px rgba(31,75,51,.035); }
+        #modal-consolidado section h4, #modal-faixas h4 { color: #214b36; }
+        #modal-consolidado .overflow-x-auto { border: 1px solid #e8f0ea; border-radius: 13px; }
+        #modal-consolidado table thead { position: sticky; top: 0; z-index: 2; }
+        #modal-consolidado table tbody tr { transition: background .16s ease; }
+        #modal-consolidado table tbody tr:hover { background: #f3faf5; }
+        .ranking-share { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; min-width: 90px; }
+        .ranking-share > span { color: #527463; font-size: 10px; font-weight: 900; }
+        .ranking-share-track { width: 80px; height: 5px; overflow: hidden; border-radius: 99px; background: #e7f1e9; }
+        .ranking-share-track > div { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #159964, #62d69a); }
+        #modal-faixas #grid-operadores { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .operator-report-card { padding: 15px !important; border-color: #e5eee8 !important; border-radius: 17px !important; background: linear-gradient(155deg, #fff, #f7fbf8) !important; }
+        .operator-share-meter > div:first-child { display: flex; justify-content: space-between; gap: 8px; color: #789181; font-size: 9px; font-weight: 700; }
+        .operator-share-meter strong { color: #118353; font-size: 10px; font-variant-numeric: tabular-nums; }
+        .operator-report-card .mini-progress, .range-report-card .mini-progress { height: 6px; margin: 7px 0 3px; background: #e9f1ea; }
+        .range-report-card { min-height: 128px; padding: 14px !important; border-radius: 16px !important; background: linear-gradient(145deg, rgba(255,255,255,.9), rgba(248,252,249,.88)); }
+        .range-share-meter { margin: 3px 0 8px; color: #648170; font-size: 9px; font-weight: 800; }
+        .range-share-meter .mini-progress { margin-top: 0; }
+        #modal-faixas #grid-faixas-aberto, #modal-faixas #grid-faixas-pago { gap: 12px; }
+
+        @media (max-width: 1279px) {
+            main > .dashboard-header { grid-template-columns: minmax(0,1fr) max-content; }
+            .dashboard-actions { grid-column: 1 / -1; grid-row: 2; justify-content: start; }
+            .dashboard-user { grid-column: 2; grid-row: 1; }
+            #app-shell > aside { max-height: calc(100vh - 28px); }
+        }
+        @media (max-width: 900px) {
+            #modal-consolidado .grid-cols-2 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            #modal-faixas #grid-operadores { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 767px) {
+            #app-shell > aside { max-height: none; overflow: visible; }
+            main > .dashboard-header { grid-template-columns: 1fr; gap: 13px; }
+            .dashboard-intro h1 { white-space: normal; }
+            .site-logo-login { width: 138px; }
+            .site-logo-sidebar { width: 82px; }
+            .site-logo-dashboard { width: 76px; }
+            .dashboard-title-row { align-items: flex-start; gap: 10px; }
+            .dashboard-actions { grid-column: 1; grid-row: auto; grid-template-columns: repeat(2, minmax(0,1fr)); justify-content: stretch; width: 100% !important; }
+            .dashboard-actions button { justify-content: center; white-space: normal; }
+            main > .dashboard-header .dashboard-user { grid-column: 1; grid-row: auto; justify-content: space-between; }
+            #modal-consolidado > div, #modal-faixas > div { padding: 18px !important; }
+            #modal-consolidado .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            #modal-faixas #grid-operadores { grid-template-columns: 1fr; }
+            #modal-consolidado > div > div:first-child, #modal-faixas > div > div:first-child { top: -18px; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col md:flex-row">
+    <!-- TELA DE LOGIN -->
+    <div id="tela-login" class="fixed inset-0 z-[100] bg-slate-950 flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl p-7 md:p-9">
+            <div class="text-center mb-7">
+                <div class="site-logo-crop site-logo-login mx-auto" role="img" aria-label="Simplic Gestão Preventiva"></div>
+                <h2 class="mt-4 text-2xl font-black text-slate-800">CRC WhatsApp</h2>
+                <p class="text-sm text-slate-500 mt-1">Acesso ao sistema de cobrança</p>
+            </div>
+
+            <form id="form-login" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">E-mail</label>
+                    <input id="login-email" type="email" required autocomplete="username" placeholder="seu@email.com"
+                        class="w-full p-3.5 rounded-xl border border-slate-200 bg-slate-50 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">Senha</label>
+                    <input id="login-senha" type="password" required autocomplete="current-password" placeholder="••••••••"
+                        class="w-full p-3.5 rounded-xl border border-slate-200 bg-slate-50 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 text-sm">
+                </div>
+                <div id="login-erro" class="hidden p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold"></div>
+                <button id="btn-login" type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl transition shadow-lg">
+                    Entrar no sistema
+                </button>
+            </form>
+
+            <p class="text-[11px] text-slate-400 text-center mt-5 leading-relaxed">
+                O nível de acesso é definido pela conta do Supabase. Administrador possui edição completa; operador possui acesso somente para visualização.
+            </p>
+        </div>
+    </div>
+
+    <div id="app-shell" class="hidden contents">
+
+    <!-- SIDEBAR ESQUERDA -->
+    <aside class="w-full md:w-80 bg-slate-900 text-slate-100 p-6 flex flex-col justify-between shrink-0 shadow-lg">
+        <div class="space-y-6">
+            <div class="flex items-center gap-3">
+                <div class="site-logo-crop site-logo-sidebar" role="img" aria-label="Simplic Gestão Preventiva"></div>
+                <div>
+                    <h1 class="font-black text-lg tracking-wide text-white">CRC WhatsApp</h1>
+                    <p class="text-xs text-slate-400 font-medium">Gestão Preventiva e Atraso</p>
+                </div>
+            </div>
+
+            <section id="template-editor-card" class="template-editor-card">
+                <div class="template-editor-heading">
+                    <div><span class="template-kicker">EDITOR DE MENSAGENS</span><h2>Template WhatsApp</h2></div>
+                    <span class="template-status-dot" aria-hidden="true"></span>
+                </div>
+                <label class="template-field-label" for="template-seletor">Modelo ativo</label>
+                <select id="template-seletor" onchange="selecionarTemplate(this.value)" class="template-control"></select>
+                <div class="template-name-field" data-admin-only>
+                    <label class="template-field-label" for="template-nome">Nome do modelo</label>
+                    <input id="template-nome" type="text" maxlength="48" placeholder="Ex.: Lembrete preventivo" class="template-control">
+                </div>
+                <div class="template-variables" data-admin-only>
+                    <span>Inserir variável</span>
+                    <div>
+                        <button type="button" onclick="inserirVariavelTemplate('{nome}')">{nome}</button>
+                        <button type="button" onclick="inserirVariavelTemplate('{valor}')">{valor}</button>
+                        <button type="button" onclick="inserirVariavelTemplate('{faixa}')">{faixa}</button>
+                    </div>
+                </div>
+                <label class="template-field-label" for="template-mensagem">Mensagem</label>
+                <textarea id="template-mensagem" class="template-control template-message" aria-label="Texto da mensagem"></textarea>
+                <div class="template-meta"><span>As variáveis serão preenchidas para cada cliente.</span><span id="template-contagem">0 caracteres</span></div>
+                <div class="template-preview-card">
+                    <div class="template-preview-title"><span>PRÉVIA</span><span>Exemplo</span></div>
+                    <p id="template-previa" aria-live="polite">Sua mensagem aparecerá aqui.</p>
+                </div>
+                <div class="template-feedback" id="template-feedback" aria-live="polite"></div>
+                <div class="template-actions">
+                    <button type="button" data-admin-only onclick="novoTemplate()" class="template-new-button">＋ Novo</button>
+                    <button type="button" data-admin-only onclick="salvarTemplate()" class="template-save-button">Salvar modelo</button>
+                </div>
+                <button type="button" data-admin-only onclick="excluirTemplate()" class="template-delete-button">Excluir este modelo</button>
+            </section>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-slate-800">
+            <div class="bg-slate-800/40 p-3 rounded-xl border border-slate-700/40 flex items-center gap-3">
+                <div id="status-conexao-dot" class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse shrink-0"></div>
+                <div>
+                    <p class="text-xs font-bold text-slate-200">Nuvem Conectada</p>
+                    <p id="status-conexao-texto" class="text-[10px] text-slate-400">Sincronizado em Tempo Real</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="flex-1 p-6 md:p-8 space-y-6 overflow-x-hidden">
+        
+        <!-- CABEÇALHO -->
+        <header class="dashboard-header flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80">
+            <div class="dashboard-intro">
+                <div class="dashboard-title-row">
+                    <div class="site-logo-crop site-logo-dashboard" role="img" aria-label="Simplic Gestão Preventiva"></div>
+                    <div class="dashboard-intro-copy">
+                        <span class="dashboard-kicker">CENTRAL DE OPERAÇÕES</span>
+                        <h1 class="text-xl font-black text-slate-800">Painel Geral de Cobrança</h1>
+                        <p class="text-xs text-slate-500 font-medium mt-0.5">Monitore e acione suas listas organizadas por abas</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="dashboard-actions flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+                <button onclick="abrirModalFaixas()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs">
+                    📈 Faixas & Operadores
+                </button>
+                <button data-admin-only onclick="abrirModalConsolidado()" class="bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs">
+                    📊 Consolidado Geral
+                </button>
+                <button data-admin-only onclick="excluirTodos()" class="bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-xs">
+                    🗑️ Limpar Aba
+                </button>
+                <button data-admin-only onclick="abrirModalLote()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                    📁 Importar Lote
+                </button>
+                <button data-admin-only onclick="exportarAbaExcel()" title="Baixar todos os clientes da aba atual em arquivo compatível com Excel" class="button-export-excel text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5">
+                    ⤓ Exportar Excel
+                </button>
+                <button data-admin-only onclick="abrirModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                    + Novo Cliente
+                </button>
+            </div>
+            <div class="dashboard-user">
+                <div class="dashboard-user-copy"><p id="usuario-nome">-</p><p id="usuario-perfil">-</p></div>
+                <button onclick="fazerLogout()" class="dashboard-logout">Sair</button>
+            </div>
+        </header>
+
+        <!-- ABAS -->
+        <div class="flex items-center gap-3 overflow-x-auto pb-1">
+            <div id="container-abas" class="flex gap-2"></div>
+            <button data-admin-only onclick="criarNovaAba()" class="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition shadow-xs">
+                + Nova Aba
+            </button>
+        </div>
+
+        <!-- CARDS DE RESUMO -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between">
+                <div class="flex justify-between items-start">
+                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Clientes Acionados</p>
+                    <span class="text-sm bg-blue-50 p-1.5 rounded-xl">📞</span>
+                </div>
+                <div class="mt-3">
+                    <h2 id="card-acionados" class="text-2xl font-black text-slate-800">0 / 0</h2>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Total acionado nesta aba</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between">
+                <div class="flex justify-between items-start">
+                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Clientes Pagantes</p>
+                    <span class="text-sm bg-emerald-50 p-1.5 rounded-xl">✅</span>
+                </div>
+                <div class="mt-3">
+                    <h2 id="card-pagantes" class="text-2xl font-black text-emerald-600">0</h2>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Acordos liquidados</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between">
+                <div class="flex justify-between items-start">
+                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Valor Recuperado</p>
+                    <span class="text-sm bg-amber-50 p-1.5 rounded-xl">💰</span>
+                </div>
+                <div class="mt-3">
+                    <h2 id="card-valorpago" class="text-2xl font-black text-emerald-600">R$ 0,00</h2>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Recuperado nesta aba</p>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col justify-between">
+                <div class="flex justify-between items-start">
+                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Valor em Aberto</p>
+                    <span class="text-sm bg-indigo-50 p-1.5 rounded-xl">⏳</span>
+                </div>
+                <div class="mt-3">
+                    <h2 id="card-valortotal" class="text-2xl font-black text-slate-800">R$ 0,00</h2>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Pendente + Acionado</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- BARRA DE PROGRESSO / STATUS GERAL -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200/80 space-y-4">
+            <div class="flex justify-between items-center">
+                <span class="text-xs font-black text-slate-700 uppercase tracking-wider">Status Geral da Carteira da Aba (Distribuição R$)</span>
+                <span id="texto-porcentagem" class="text-xs font-black bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-lg">0.0% Recuperado</span>
+            </div>
+            
+            <div class="allocation-layout">
+                <div id="grafico-distribuicao" class="allocation-donut" role="img" aria-label="Distribuição da carteira por status" style="--pct-pagos:0%;--pct-confirmados:0%;--pct-abertos:100%;--pct-recusados:0%">
+                    <div class="allocation-donut-hole"><strong id="texto-donut">0%</strong><span>recuperado</span></div>
+                </div>
+                <div class="allocation-details">
+                    <div class="w-full h-3.5 bg-slate-100 rounded-full flex overflow-hidden shadow-inner">
+                        <div id="barra-pagos" class="bg-emerald-500 h-full transition-all duration-500" style="width: 0%"></div>
+                        <div id="barra-confirmados" class="bg-teal-400 h-full transition-all duration-500" style="width: 0%"></div>
+                        <div id="barra-abertos" class="bg-amber-400 h-full transition-all duration-500" style="width: 100%"></div>
+                        <div id="barra-recusados" class="bg-rose-400 h-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-6 text-xs pt-1">
+                        <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-emerald-500"></div><span class="font-semibold text-slate-600">Pagos:</span> <span id="legenda-val-pago" class="font-bold text-slate-800">R$ 0,00</span> <span id="legenda-pct-pago" class="text-slate-400">(0%)</span></div>
+                        <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-teal-400"></div><span class="font-semibold text-slate-600">Confirmados:</span> <span id="legenda-val-confirmado" class="font-bold text-slate-800">R$ 0,00</span> <span id="legenda-pct-confirmado" class="text-slate-400">(0%)</span></div>
+                        <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-amber-400"></div><span class="font-semibold text-slate-600">Em Aberto:</span> <span id="legenda-val-aberto" class="font-bold text-slate-800">R$ 0,00</span> <span id="legenda-pct-aberto" class="text-slate-400">(100%)</span></div>
+                        <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-full bg-rose-400"></div><span class="font-semibold text-slate-600">Não vão pagar:</span> <span id="legenda-val-recusado" class="font-bold text-slate-800">R$ 0,00</span> <span id="legenda-pct-recusado" class="text-slate-400">(0%)</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ENVIO AUTOMÁTICO WHATSAPP -->
+        <section id="painel-envio-auto" data-admin-only class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 class="font-black text-slate-800 text-sm">⚡ Envio automático WhatsApp</h2>
+                    <p class="text-[11px] text-slate-500">Envia em sequência os clientes pendentes da aba atual usando o WhatsApp Web conectado no agente local.</p>
+                </div>
+                <span id="agente-status" class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700">Verificando agente...</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="rounded-xl bg-slate-50 p-3"><div class="text-[10px] text-slate-500">Na fila</div><b id="auto-total" class="text-lg">0</b></div>
+                <div class="rounded-xl bg-slate-50 p-3"><div class="text-[10px] text-slate-500">Enviados</div><b id="auto-enviados" class="text-lg text-emerald-600">0</b></div>
+                <div class="rounded-xl bg-slate-50 p-3"><div class="text-[10px] text-slate-500">Falhas</div><b id="auto-falhas" class="text-lg text-rose-600">0</b></div>
+            </div>
+            <div class="h-2.5 bg-slate-100 rounded-full overflow-hidden"><div id="auto-progresso" class="h-full bg-emerald-500 transition-all" style="width:0%"></div></div>
+            <div class="flex flex-wrap items-end gap-3">
+                <label class="text-xs font-semibold text-slate-600 flex flex-col gap-1">
+                    WhatsApp para esta campanha
+                    <select id="auto-conta-whatsapp" class="min-w-48 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800">
+                        <option value="whatsapp-1">WhatsApp 1 — verificando...</option>
+                    </select>
+                </label>
+                <button type="button" id="btn-adicionar-whatsapp" onclick="adicionarContaWhatsApp()" class="border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-bold px-4 py-2.5 rounded-xl">＋ Conectar outro WhatsApp</button>
+                <label class="text-xs font-semibold text-slate-600 flex flex-col gap-1">
+                    Quantos clientes enviar nesta rodada?
+                    <input id="auto-limite-clientes" type="number" min="1" max="500" value="5"
+                        class="w-28 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800"
+                        aria-label="Quantidade de clientes para enviar">
+                </label>
+                <button type="button" id="btn-auto-iniciar" onclick="window.iniciarEnvioAutomatico && window.iniciarEnvioAutomatico()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl">▶ Iniciar envio dos pendentes</button>
+                <button id="btn-auto-parar" onclick="pararEnvioAutomatico()" class="hidden bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl">■ Parar fila</button>
+                <button onclick="verificarAgenteWhatsApp()" class="border border-slate-200 text-slate-600 text-xs font-bold px-4 py-2.5 rounded-xl">↻ Verificar conexão</button>
+            </div>
+            <p id="auto-mensagem" class="text-[11px] text-slate-500" aria-live="polite">O agente precisa estar instalado e o WhatsApp Web conectado. A fila inclui somente clientes com status Pendente.</p>
+        </section>
+
+
+        <div id="modal-confirmar-envio" class="hidden fixed inset-0 z-[9999] bg-slate-950/60 items-center justify-center p-4">
+            <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl p-5 space-y-4">
+                <div class="text-base font-black text-slate-800">Confirmar envio automático</div>
+                <p id="modal-confirmar-texto" class="text-sm text-slate-600"></p>
+                <p class="text-xs text-slate-500">Confirme que os contatos autorizaram receber mensagens e que o texto está correto. O envio será feito um contato por vez.</p>
+                <div class="flex gap-2 justify-end">
+                    <button type="button" onclick="resolverConfirmacaoEnvio(false)" class="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-bold">Cancelar</button>
+                    <button type="button" onclick="resolverConfirmacaoEnvio(true)" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold">Confirmar e iniciar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- FILTROS E BUSCA DA TABELA -->
+        <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80">
+            <input type="text" id="filtro-busca" oninput="agendarBusca()" placeholder="🔍 Buscar nome, contrato, telefone ou operador..." class="px-4 py-2 text-xs border border-slate-200 rounded-xl outline-none focus:border-indigo-500 transition w-full md:w-80 bg-slate-50">
+
+            <details id="filtro-faixas-dropdown" class="relative w-full md:w-auto">
+                <summary class="list-none [&::-webkit-details-marker]:hidden cursor-pointer flex items-center justify-between gap-3 px-4 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 transition">
+                    <span id="resumo-filtro-faixas-texto">Faixas de atraso: Todas</span><span aria-hidden="true" class="text-slate-400">▾</span>
+                </summary>
+                <div id="opcoes-filtro-faixas" class="absolute left-0 top-full mt-2 z-30 w-full md:w-64 bg-white p-3 rounded-xl border border-slate-200 shadow-xl space-y-2">
+                    <p class="text-[10px] text-slate-500 pb-1">Selecione uma ou mais faixas:</p>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer"><input type="checkbox" value="C | 61 a 90" onchange="mudarFiltrosFaixa()" class="accent-indigo-600"> C | 61 a 90</label>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer"><input type="checkbox" value="D | 91 a 120" onchange="mudarFiltrosFaixa()" class="accent-indigo-600"> D | 91 a 120</label>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer"><input type="checkbox" value="E | 121 a 150" onchange="mudarFiltrosFaixa()" class="accent-indigo-600"> E | 121 a 150</label>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer"><input type="checkbox" value="F | 151 a 180" onchange="mudarFiltrosFaixa()" class="accent-indigo-600"> F | 151 a 180</label>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer"><input type="checkbox" value="G | 181 a 360" onchange="mudarFiltrosFaixa()" class="accent-indigo-600"> G | 181 a 360</label>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer"><input type="checkbox" value="H | 361 a 720" onchange="mudarFiltrosFaixa()" class="accent-indigo-600"> H | 361 a 720</label>
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer"><input type="checkbox" value="+720 dias" onchange="mudarFiltrosFaixa()" class="accent-indigo-600"> +720 dias</label>
+                    <button type="button" onclick="limparFiltroFaixas()" class="w-full border-t border-slate-100 pt-2 text-left text-[11px] font-bold text-indigo-600 hover:text-indigo-800">Limpar seleção</button>
+                </div>
+            </details>
+
+            <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto">
+                <button id="btn-status-Todos" onclick="mudarFiltroStatus('Todos')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition bg-slate-800 text-white whitespace-nowrap shadow-xs">Todos</button>
+                <button id="btn-status-Pendente" onclick="mudarFiltroStatus('Pendente')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-200 whitespace-nowrap">Pendente</button>
+                <button id="btn-status-Acionado" onclick="mudarFiltroStatus('Acionado')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-200 whitespace-nowrap">Acionado</button>
+                <button id="btn-status-Confirmado" onclick="mudarFiltroStatus('Confirmado')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-200 whitespace-nowrap">Confirmado</button>
+                <button id="btn-status-Pago" onclick="mudarFiltroStatus('Pago')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-200 whitespace-nowrap">Pago</button>
+                <button id="btn-status-Não vão pagar" onclick="mudarFiltroStatus('Não vão pagar')" class="px-3 py-1.5 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-200 whitespace-nowrap">Não vão pagar</button>
+            </div>
+        </div>
+
+        <!-- TABELA DE CLIENTES -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs whitespace-nowrap">
+                    <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider">
+                        <tr>
+                            <th class="p-4 font-bold">Nome do Cliente</th>
+                            <th class="p-4 font-bold">Contrato</th>
+                            <th class="p-4 font-bold">Telefone</th>
+                            <th class="p-4 font-bold">Valor (R$)</th>
+                            <th class="p-4 font-bold">Faixa de Atraso</th>
+                            <th class="p-4 font-bold">Status</th>
+                            <th class="p-4 font-bold">Observações (Motivo)</th>
+                            <th class="p-4 font-bold text-center">Comprovante</th>
+                            <th class="p-4 font-bold text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-clientes" class="divide-y divide-slate-100">
+                        <!-- Preenchido via JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="paginacao-clientes" class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 p-3 text-xs text-slate-500">
+                <span id="paginacao-info">0 clientes</span>
+                <div class="flex gap-2"><button id="pagina-anterior" onclick="mudarPagina(-1)" class="px-3 py-1.5 rounded-lg border border-slate-200 disabled:opacity-40">← Anterior</button><span id="paginacao-pagina" class="px-2 py-1.5">1 / 1</span><button id="pagina-proxima" onclick="mudarPagina(1)" class="px-3 py-1.5 rounded-lg border border-slate-200 disabled:opacity-40">Próxima →</button></div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ================= MODAL: CONSOLIDADO GERAL (ADMIN) ================= -->
+    <div id="modal-consolidado" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 z-[55] hidden">
+        <div class="bg-white rounded-2xl max-w-6xl w-full p-5 md:p-7 shadow-2xl max-h-[94vh] overflow-y-auto space-y-5">
+            <div class="flex justify-between items-start gap-3 border-b border-slate-100 pb-4">
+                <div><h3 class="text-lg font-black text-slate-800">📊 Consolidado Geral</h3><p class="text-xs text-slate-500 mt-1">Resumo de todas as abas e carteiras do sistema.</p></div>
+                <button onclick="fecharModalConsolidado()" class="text-slate-400 hover:text-slate-700 font-bold text-xl">✕</button>
+            </div>
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                <div class="rounded-xl bg-slate-50 border border-slate-200 p-4"><p class="text-[10px] uppercase font-bold text-slate-500">Abas</p><p id="geral-qtd-abas" class="text-xl font-black text-slate-800">0</p></div>
+                <div class="rounded-xl bg-slate-50 border border-slate-200 p-4"><p class="text-[10px] uppercase font-bold text-slate-500">Clientes</p><p id="geral-clientes" class="text-xl font-black text-slate-800">0</p></div>
+                <div class="rounded-xl bg-slate-50 border border-slate-200 p-4"><p class="text-[10px] uppercase font-bold text-slate-500">Total da base</p><p id="geral-total" class="text-sm md:text-base font-black text-slate-800">R$ 0,00</p></div>
+                <div class="rounded-xl bg-emerald-50 border border-emerald-200 p-4"><p class="text-[10px] uppercase font-bold text-emerald-700">Valor pago</p><p id="geral-pago" class="text-sm md:text-base font-black text-emerald-700">R$ 0,00</p></div>
+                <div class="rounded-xl bg-amber-50 border border-amber-200 p-4"><p class="text-[10px] uppercase font-bold text-amber-700">Em aberto</p><p id="geral-aberto" class="text-sm md:text-base font-black text-amber-700">R$ 0,00</p></div>
+            </div>
+            <div class="rounded-2xl border border-violet-200 bg-violet-50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div><p class="text-xs font-black uppercase tracking-wide text-violet-700">Percentual de reversão total</p><p class="text-[11px] text-violet-600">Valor pago ÷ valor total da base, considerando todas as abas.</p></div>
+                <p id="geral-reversao" class="text-3xl font-black text-violet-800">0,0%</p>
+            </div>
+            <section class="border border-indigo-200 rounded-2xl p-4 md:p-5 space-y-4">
+                <div><h4 class="text-sm font-black text-slate-800">🏆 Ranking consolidado de operadores</h4><p class="text-[11px] text-slate-500">Pagamentos somados de todas as abas, ordenados do maior para o menor.</p></div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs min-w-[560px]">
+                        <thead><tr class="bg-slate-50 text-slate-500 uppercase tracking-wide"><th class="p-3 rounded-l-lg">Posição</th><th class="p-3">Operador</th><th class="p-3 text-right">Clientes pagos</th><th class="p-3 text-right">Valor pago</th><th class="p-3 text-right rounded-r-lg">% dos pagamentos</th></tr></thead>
+                        <tbody id="ranking-consolidado-operadores"><tr><td colspan="5" class="p-4 text-center text-slate-400">Carregando ranking...</td></tr></tbody>
+                    </table>
+                </div>
+            </section>
+            <section class="border border-slate-200 rounded-2xl p-4 md:p-5 space-y-4">
+                <div><h4 class="text-sm font-black text-slate-800">💰 Valor pago por faixa</h4><p class="text-[11px] text-slate-500">Valores somados entre todas as abas.</p></div>
+                <div id="grafico-pago-faixas" class="space-y-3"></div>
+            </section>
+            <div class="flex justify-end"><button onclick="fecharModalConsolidado()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-5 py-2.5 rounded-xl">Fechar</button></div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: FAIXAS & OPERADORES ================= -->
+    <div id="modal-faixas" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-5xl w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto space-y-6">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4">
+                <div>
+                    <h3 class="text-base font-black text-slate-800">📊 Relatórios Detalhados (Aba Atual)</h3>
+                    <p class="text-xs text-slate-500 font-medium">Ranking de operadores por valor pago e análise por faixa de atraso.</p>
+                </div>
+                <button onclick="fecharModalFaixas()" class="text-slate-400 hover:text-slate-600 font-bold text-xl p-1">✕</button>
+            </div>
+
+            <!-- Seção 1: Ranking de Operadores -->
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-3">
+                <h4 class="text-xs font-black uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
+                    🏆 Ranking de Operadores (Do Maior para o Menor Valor Pago)
+                </h4>
+                <div id="grid-operadores" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    <!-- Preenchido pelo JS em ordem decrescente -->
+                </div>
+            </div>
+
+            <!-- Seção 2: Saldo em Aberto -->
+            <div>
+                <h4 class="text-xs font-black uppercase tracking-wider text-slate-600 mb-3">⏳ Saldo em Aberto por Faixa</h4>
+                <div id="grid-faixas-aberto" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    <!-- Preenchido pelo JS -->
+                </div>
+            </div>
+
+            <!-- Seção 3: Valor Pago -->
+            <div class="pt-2 border-t border-slate-100">
+                <h4 class="text-xs font-black uppercase tracking-wider text-emerald-700 mb-3">💰 Valor Pago / Recuperado por Faixa</h4>
+                <div id="grid-faixas-pago" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    <!-- Preenchido pelo JS -->
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end pt-4 border-t border-slate-100">
+                <button onclick="fecharModalFaixas()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-5 py-2.5 rounded-xl transition">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: NOVO CLIENTE ================= -->
+    <div id="modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+            <h2 class="text-base font-black text-slate-800 mb-4">Adicionar Novo Cliente</h2>
+            <form id="form-cliente" onsubmit="salvarCliente(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Nome Completo</label>
+                    <input type="text" id="nome" required class="w-full p-2.5 text-xs border border-slate-300 rounded-xl outline-none focus:border-indigo-500 bg-slate-50">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Telefone (Somente números)</label>
+                    <input type="text" id="telefone" required class="w-full p-2.5 text-xs border border-slate-300 rounded-xl outline-none focus:border-indigo-500 bg-slate-50">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Valor Original (R$)</label>
+                    <input type="number" id="valor" step="0.01" required class="w-full p-2.5 text-xs border border-slate-300 rounded-xl outline-none focus:border-indigo-500 bg-slate-50">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Operador Responsável</label>
+                    <input type="text" id="operador" placeholder="Ex: João" class="w-full p-2.5 text-xs border border-slate-300 rounded-xl outline-none focus:border-indigo-500 bg-slate-50">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Contrato <span class="font-medium text-slate-400">(opcional)</span></label>
+                    <input type="text" id="contrato" maxlength="64" pattern="[A-Za-z0-9/-]*" title="Use apenas letras, números, hífen (-) e barra (/)." placeholder="Ex.: AB-123/45" autocomplete="off" class="w-full p-2.5 text-xs border border-slate-300 rounded-xl outline-none focus:border-indigo-500 bg-slate-50">
+                    <p class="mt-1 text-[10px] text-slate-400">Use letras, números, hífen e barra.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Faixa de Atraso Inicial</label>
+                    <select id="faixaAtraso" class="w-full p-2.5 text-xs border border-slate-300 rounded-xl outline-none focus:border-indigo-500 bg-slate-50">
+                        <option value="C | 61 a 90" selected>C | 61 a 90</option>
+                        <option value="D | 91 a 120">D | 91 a 120</option>
+                        <option value="E | 121 a 150">E | 121 a 150</option>
+                        <option value="F | 151 a 180">F | 151 a 180</option>
+                        <option value="G | 181 a 360">G | 181 a 360</option>
+                        <option value="H | 361 a 720">H | 361 a 720</option>
+                        <option value="+720 dias">+720 dias</option>
+                    </select>
+                </div>
+                <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="fecharModal()" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition shadow-sm">Salvar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MODAL: LOTE ================= -->
+    <div id="modal-lote" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h2 class="text-base font-black text-slate-800">Ações em Lote</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Cole os dados nesta ordem. O contrato é opcional e fica no fim: <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">NOME;TELEFONE;VALOR;FAIXA;OPERADOR;CONTRATO</span></p>
+                </div>
+                <button onclick="fecharModalLote()" class="text-slate-400 hover:text-slate-600 text-lg font-bold p-1">✕</button>
+            </div>
+            
+            <textarea id="texto-lote" class="w-full h-64 p-3 text-xs font-mono border border-slate-300 rounded-xl outline-none focus:border-indigo-500 bg-slate-50 resize-none" placeholder="MARIA DA SILVA;11999999999;150.50;C | 61 a 90;Ana;AB-123/45&#10;JOAO SOUZA;11988888888;300.00;D | 91 a 120;Carlos;XY-2024/07"></textarea>
+            
+            <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
+                <button onclick="processarBaixaEmMassa()" class="px-4 py-2.5 text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl transition border border-blue-200">
+                    ✔️ Baixa em Massa (Acionado)
+                </button>
+                <button onclick="processarImportacaoLote()" class="px-4 py-2.5 text-xs font-bold bg-slate-800 hover:bg-slate-900 text-white rounded-xl transition shadow-sm">
+                    📥 Importar Clientes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        const SUPABASE_URL = "https://kgidkxaqvgcqiqwqxvut.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtnaWRreGFxdmdjcWlxd3F4dnV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0ODc0MzAsImV4cCI6MjA5ODA2MzQzMH0.DLQoO8_q_QeW-a084ZDCFRc0OIeuEDaYpkUg2tSCB0E";
+
+        const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let abas = [];
+        let abaAtivaId = 'aba_padrao';
+        let clientes = [];
+        let statusAtivo = 'Todos';
+        let faixasAtivas = [];
+        let templateMsg = "Olá {nome}! Lembramos do seu título no valor de {valor} na faixa {faixa}. Entre em contato conosco para regularizar seu débito e evitar demais encargos!";
+        let debounceTimer = null;
+        let usuarioAtual = null;
+        let isAdmin = false;
+        let canalRealtime = null;
+        let listaTemplates = [];
+        let templateSelecionadoId = 'padrao';
+        let paginaAtual = 1;
+        const CLIENTES_POR_PAGINA = 100;
+        let timerBusca = null;
+        let envioAutoAtivo = false;
+        let envioAutoAbortar = false;
+
+        const TODAS_FAIXAS = [
+            'C | 61 a 90',
+            'D | 91 a 120',
+            'E | 121 a 150',
+            'F | 151 a 180',
+            'G | 181 a 360',
+            'H | 361 a 720',
+            '+720 dias'
+        ];
+
+        function normalizarContrato(valor) {
+            return String(valor ?? '').trim();
+        }
+
+        function contratoValido(valor) {
+            const contrato = normalizarContrato(valor);
+            return contrato === '' || /^[A-Za-z0-9\/-]+$/.test(contrato);
+        }
+
+        function escaparHTML(valor) {
+            return String(valor ?? '').replace(/[&<>"']/g, caractere => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[caractere]));
+        }
+
+        function mostrarErroLogin(mensagem) {
+            const el = document.getElementById('login-erro');
+            if (!el) return;
+            el.textContent = mensagem;
+            el.classList.remove('hidden');
+        }
+
+        function aplicarPermissoes() {
+            document.body.classList.toggle('modo-operador', !isAdmin);
+            document.body.classList.add('app-ready');
+            document.getElementById('app-shell')?.classList.remove('hidden');
+            document.getElementById('tela-login')?.classList.add('hidden');
+
+            document.querySelectorAll('[data-admin-only]').forEach(el => {
+                el.classList.toggle('hidden', !isAdmin);
+            });
+
+            const email = usuarioAtual?.email || 'Usuário';
+            const nomeEl = document.getElementById('usuario-nome');
+            const perfilEl = document.getElementById('usuario-perfil');
+            if (nomeEl) nomeEl.textContent = email;
+            if (perfilEl) perfilEl.textContent = isAdmin ? 'Administrador' : 'Operador';
+
+            const template = document.getElementById('template-mensagem');
+            if (template) template.disabled = !isAdmin;
+        }
+
+        async function entrarNoSistema(email, senha) {
+            const btn = document.getElementById('btn-login');
+            const erro = document.getElementById('login-erro');
+            erro?.classList.add('hidden');
+            if (btn) { btn.disabled = true; btn.textContent = 'Entrando...'; }
+
+            try {
+                const { data, error } = await db.auth.signInWithPassword({ email, password: senha });
+                if (error) throw error;
+                usuarioAtual = data.user;
+                // Somente contas explicitamente marcadas como admin ou operador podem entrar.
+                const role = usuarioAtual?.app_metadata?.role;
+                if (!['admin', 'operador'].includes(role)) {
+                    await db.auth.signOut();
+                    usuarioAtual = null;
+                    isAdmin = false;
+                    mostrarErroLogin('Esta conta não tem um perfil de acesso configurado. Fale com o administrador.');
+                    return;
+                }
+                isAdmin = role === 'admin';
+                aplicarPermissoes();
+                await carregarDados();
+            } catch (error) {
+                console.error(error);
+                mostrarErroLogin('E-mail ou senha inválidos.');
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = 'Entrar no sistema'; }
+            }
+        }
+
+        async function fazerLogout() {
+            try { await db.auth.signOut(); } catch (e) { console.error(e); }
+            usuarioAtual = null;
+            isAdmin = false;
+            document.body.classList.remove('app-ready');
+            if (canalRealtime) { try { await db.removeChannel(canalRealtime); } catch(e) {} canalRealtime = null; }
+            document.getElementById('app-shell')?.classList.add('hidden');
+            document.getElementById('tela-login')?.classList.remove('hidden');
+            document.getElementById('login-senha').value = '';
+        }
+
+        async function iniciarAutenticacao() {
+            const form = document.getElementById('form-login');
+            form?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await entrarNoSistema(document.getElementById('login-email').value.trim(), document.getElementById('login-senha').value);
+            });
+
+            const { data } = await db.auth.getSession();
+            if (data?.session?.user) {
+                usuarioAtual = data.session.user;
+                const role = usuarioAtual?.app_metadata?.role;
+                if (!['admin', 'operador'].includes(role)) {
+                    await db.auth.signOut();
+                    usuarioAtual = null;
+                    isAdmin = false;
+                    mostrarErroLogin('Esta conta não tem um perfil de acesso configurado. Fale com o administrador.');
+                } else {
+                    isAdmin = role === 'admin';
+                    aplicarPermissoes();
+                    await carregarDados();
+                }
+            }
+
+            db.auth.onAuthStateChange(async (_event, session) => {
+                if (!session?.user) return;
+                const role = session.user?.app_metadata?.role;
+                if (!['admin', 'operador'].includes(role)) {
+                    usuarioAtual = null;
+                    isAdmin = false;
+                    await db.auth.signOut();
+                    mostrarErroLogin('Esta conta não tem um perfil de acesso configurado. Fale com o administrador.');
+                    return;
+                }
+                usuarioAtual = session.user;
+                isAdmin = role === 'admin';
+                aplicarPermissoes();
+            });
+        }
+
+        function exigirAdmin() {
+            if (!isAdmin) {
+                alert('Seu acesso é somente para visualização.');
+                return false;
+            }
+            return true;
+        }
+
+        async function carregarDados() {
+            atualizarStatusConexao(false, "Sincronizando...");
+
+            try {
+                const { data: dataAbas, error: errAbas } = await db.from('abas').select('*').order('created_at', { ascending: true });
+                if (errAbas) throw errAbas;
+
+                if (dataAbas && dataAbas.length > 0) {
+                    abas = dataAbas;
+                } else {
+                    await db.from('abas').insert([{ id: 'aba_padrao', nome: 'Carteira 11/08' }]);
+                    abas = [{ id: 'aba_padrao', nome: 'Carteira 11/08' }];
+                }
+
+                if (!abas.some(a => a.id === abaAtivaId)) abaAtivaId = abas[0].id;
+
+                const { data: dataClientes, error: errClientes } = await db.from('clientes').select('*');
+                if (errClientes) throw errClientes;
+
+                clientes = (dataClientes || []).map(c => ({
+                    id: Number(c.id),
+                    abaId: c.aba_id,
+                    nome: c.nome,
+                    telefone: c.telefone,
+                    valor: parseFloat(c.valor),
+                    faixaAtraso: normalizarFaixa(c.faixa_atraso),
+                    status: c.status,
+                    contrato: normalizarContrato(c.contrato),
+                    motivo: c.motivo || '',
+                    operador: c.operador || 'Não atribuído',
+                    comprovante_url: c.comprovante_url || ''
+                }));
+
+                await carregarTemplates();
+
+                atualizarStatusConexao(true, "Sincronizado em Tempo Real");
+                renderizarAbas();
+                renderizar();
+                assinarRealtime();
+                
+            } catch (error) {
+                console.error("Erro ao carregar:", error);
+                atualizarStatusConexao(false, "Erro de Conexão");
+            }
+        }
+
+        function assinarRealtime() {
+            if (canalRealtime) return;
+            canalRealtime = db.channel('custom-all-channel')
+                .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => { carregarDadosSilencioso(); }, 900);
+                })
+                .subscribe();
+        }
+
+        async function carregarDadosSilencioso() {
+            const { data: dataAbas } = await db.from('abas').select('*').order('created_at', { ascending: true });
+            if (dataAbas) {
+                abas = dataAbas;
+                if (!abas.some(a => a.id === abaAtivaId) && abas.length > 0) abaAtivaId = abas[0].id;
+                renderizarAbas();
+            }
+
+            const { data: dataClientes } = await db.from('clientes').select('*');
+            if (dataClientes) {
+                clientes = dataClientes.map(c => ({
+                    id: Number(c.id),
+                    abaId: c.aba_id,
+                    nome: c.nome,
+                    telefone: c.telefone,
+                    valor: parseFloat(c.valor),
+                    faixaAtraso: normalizarFaixa(c.faixa_atraso),
+                    status: c.status,
+                    contrato: normalizarContrato(c.contrato),
+                    motivo: c.motivo || '',
+                    operador: c.operador || 'Não atribuído',
+                    comprovante_url: c.comprovante_url || ''
+                }));
+                renderizarAbas();
+                renderizar();
+            }
+        }
+
+        function atualizarStatusConexao(online, text) {
+            const dot = document.getElementById('status-conexao-dot');
+            const txt = document.getElementById('status-conexao-texto');
+            if (online) {
+                dot.className = "w-3 h-3 bg-emerald-500 rounded-full shrink-0";
+                txt.textContent = text;
+            } else {
+                dot.className = "w-3 h-3 bg-amber-500 rounded-full animate-pulse shrink-0";
+                txt.textContent = text;
+            }
+        }
+
+        function normalizarFaixa(f) {
+            if (!f) return 'C | 61 a 90';
+            let fn = String(f).trim();
+            if (fn === 'C | 61 a 90') return fn;
+            if (fn.includes('61 a 90')) return 'C | 61 a 90';
+            if (fn.includes('91 a 120')) return 'D | 91 a 120';
+            if (fn.includes('121 a 150')) return 'E | 121 a 150';
+            if (fn.includes('151 a 180')) return 'F | 151 a 180';
+            if (fn.includes('181 a 360')) return 'G | 181 a 360';
+            if (fn.includes('361 a 720')) return 'H | 361 a 720';
+            if (fn.includes('720')) return '+720 dias';
+            return TODAS_FAIXAS.includes(fn) ? fn : 'C | 61 a 90';
+        }
+
+        async function criarNovaAba() {
+            if (!exigirAdmin()) return;
+            let nomeAba = prompt("Nome da nova aba (ex: Carteira 12/08):");
+            if (nomeAba && nomeAba.trim() !== '') {
+                const newId = 'aba_' + Date.now();
+                await db.from('abas').insert([{ id: newId, nome: nomeAba.trim() }]);
+                abaAtivaId = newId;
+                await carregarDadosSilencioso();
+            }
+        }
+
+        function selecionarAba(id) {
+            const trocouAba = id !== abaAtivaId;
+            abaAtivaId = id;
+            paginaAtual = 1;
+            statusAtivo = 'Todos';
+            faixasAtivas = [];
+            document.querySelectorAll('#opcoes-filtro-faixas input[type="checkbox"]').forEach(input => { input.checked = false; });
+            atualizarResumoFiltroFaixas();
+            renderizarAbas();
+            renderizar();
+            if (trocouAba) animarTrocaAba();
+        }
+
+        let timerTransicaoAba = null;
+        function animarTrocaAba() {
+            const principal = document.querySelector('#app-shell main');
+            if (!principal) return;
+            window.clearTimeout(timerTransicaoAba);
+            principal.classList.remove('tab-transition');
+            void principal.offsetWidth;
+            principal.classList.add('tab-transition');
+            timerTransicaoAba = window.setTimeout(() => principal.classList.remove('tab-transition'), 560);
+        }
+
+        async function renomearAba(id) {
+            if (!exigirAdmin()) return;
+            const aba = abas.find(a => a.id === id);
+            if (!aba) return;
+            let novoNome = prompt("Renomear aba para:", aba.nome);
+            if (novoNome && novoNome.trim() !== '' && novoNome !== aba.nome) {
+                await db.from('abas').update({ nome: novoNome.trim() }).eq('id', id);
+                await carregarDadosSilencioso();
+            }
+        }
+
+        async function excluirAba(id, event) {
+            if (!exigirAdmin()) return;
+            event.stopPropagation();
+            if(abas.length === 1) return alert("Você não pode excluir a última aba.");
+            if(confirm(`Deseja excluir esta aba e todos os clientes dela?`)) {
+                await db.from('clientes').delete().eq('aba_id', id);
+                await db.from('abas').delete().eq('id', id);
+                if(abaAtivaId === id) {
+                    const restante = abas.filter(a => a.id !== id);
+                    abaAtivaId = restante[0].id;
+                }
+                await carregarDadosSilencioso();
+            }
+        }
+
+        function renderizarAbas() {
+            const container = document.getElementById('container-abas');
+            container.innerHTML = '';
+            // Conta clientes em uma única passagem, evitando varrer toda a base para cada aba.
+            const contagemPorAba = new Map();
+            clientes.forEach(c => contagemPorAba.set(c.abaId, (contagemPorAba.get(c.abaId) || 0) + 1));
+            abas.forEach(aba => {
+                const isAtiva = aba.id === abaAtivaId;
+                const qtd = contagemPorAba.get(aba.id) || 0;
+                let btn = document.createElement('div');
+                btn.className = `group flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer border transition shadow-xs ${isAtiva ? 'bg-emerald-600 border-emerald-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`;
+                btn.onclick = () => selecionarAba(aba.id);
+                btn.innerHTML = `
+                    <span ${isAdmin ? `ondblclick="renomearAba('${aba.id}')" title="Duplo clique para renomear"` : ''}>${aba.nome}</span>
+                    <span class="${isAtiva ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-500'} px-1.5 py-0.5 rounded-lg text-[10px]">${qtd}</span>
+                    ${isAdmin && abas.length > 1 ? `<button onclick="excluirAba('${aba.id}', event)" class="ml-0.5 opacity-0 group-hover:opacity-100 hover:text-rose-200 transition" title="Excluir Aba">✕</button>` : ''}
+                `;
+                container.appendChild(btn);
+            });
+        }
+
+        function nomeTemplateAtual() {
+            return (document.getElementById('template-nome')?.value || '').trim();
+        }
+
+        async function carregarTemplates() {
+            try {
+                const { data } = await db.from('configuracoes').select('*').in('chave', ['templatesMulti', 'templateSelecionado', 'templateMsg']);
+                const cfg = Object.fromEntries((data || []).map(x => [x.chave, x.valor]));
+                let salvos = [];
+                try { salvos = typeof cfg.templatesMulti === 'string' ? JSON.parse(cfg.templatesMulti) : (cfg.templatesMulti || []); } catch (_) {}
+                if (!Array.isArray(salvos) || !salvos.length) {
+                    const textoAntigo = cfg.templateMsg || templateMsg;
+                    salvos = [{ id: 'padrao', nome: 'Template padrão', texto: textoAntigo }];
+                }
+                listaTemplates = salvos.map((t, i) => ({ id: String(t.id || ('template_' + i)), nome: String(t.nome || ('Template ' + (i + 1))), texto: String(t.texto || '') }));
+                templateSelecionadoId = String(cfg.templateSelecionado || listaTemplates[0].id);
+                if (!listaTemplates.some(t => t.id === templateSelecionadoId)) templateSelecionadoId = listaTemplates[0].id;
+                aplicarTemplateSelecionado();
+                renderizarSeletorTemplates();
+            } catch (e) { console.warn('Templates não carregados:', e); }
+        }
+
+        function renderizarSeletorTemplates() {
+            const select = document.getElementById('template-seletor');
+            if (!select) return;
+            select.innerHTML = listaTemplates.map(t => `<option value="${t.id.replace(/"/g, '&quot;')}" ${t.id === templateSelecionadoId ? 'selected' : ''}>${t.nome.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</option>`).join('');
+            const atual = listaTemplates.find(t => t.id === templateSelecionadoId);
+            const nome = document.getElementById('template-nome');
+            if (nome) nome.value = atual?.nome || '';
+        }
+
+        function aplicarTemplateSelecionado() {
+            const atual = listaTemplates.find(t => t.id === templateSelecionadoId);
+            if (atual) templateMsg = atual.texto;
+            const area = document.getElementById('template-mensagem');
+            if (area) area.value = templateMsg;
+            atualizarPreviaTemplate();
+        }
+
+        function atualizarPreviaTemplate() {
+            const area = document.getElementById('template-mensagem');
+            const preview = document.getElementById('template-previa');
+            const contador = document.getElementById('template-contagem');
+            const texto = area?.value || '';
+            if (preview) {
+                preview.textContent = texto
+                    ? texto.replace(/\{(nome|valor|faixa)\}/gi, (_, chave) => ({ nome: 'Mariana', valor: 'R$ 320,00', faixa: 'C | 61 a 90' }[chave.toLowerCase()] || _))
+                    : 'Sua mensagem aparecerá aqui.';
+            }
+            if (contador) contador.textContent = `${texto.length.toLocaleString('pt-BR')} caracteres`;
+        }
+
+        function inserirVariavelTemplate(variavel) {
+            if (!exigirAdmin()) return;
+            const area = document.getElementById('template-mensagem');
+            if (!area) return;
+            const inicio = area.selectionStart ?? area.value.length;
+            const fim = area.selectionEnd ?? inicio;
+            area.setRangeText(variavel, inicio, fim, 'end');
+            area.focus();
+            atualizarPreviaTemplate();
+        }
+
+        function selecionarTemplate(id) {
+            const atual = listaTemplates.find(t => t.id === id);
+            if (!atual) return;
+            templateSelecionadoId = id;
+            aplicarTemplateSelecionado();
+            const nome = document.getElementById('template-nome');
+            if (nome) nome.value = atual.nome;
+            if (isAdmin) db.from('configuracoes').upsert({ chave: 'templateSelecionado', valor: templateSelecionadoId }).then(({error}) => { if (error) console.error(error); });
+        }
+
+        async function persistirTemplates() {
+            const a = await db.from('configuracoes').upsert({ chave: 'templatesMulti', valor: JSON.stringify(listaTemplates) });
+            const b = await db.from('configuracoes').upsert({ chave: 'templateSelecionado', valor: templateSelecionadoId });
+            if (a.error || b.error) throw (a.error || b.error);
+            await db.from('configuracoes').upsert({ chave: 'templateMsg', valor: templateMsg });
+        }
+
+        async function salvarTemplate() {
+            if (!exigirAdmin()) return;
+            const texto = document.getElementById('template-mensagem').value;
+            const nome = nomeTemplateAtual() || 'Template sem nome';
+            let atual = listaTemplates.find(t => t.id === templateSelecionadoId);
+            if (!atual) {
+                atual = { id: 'template_' + Date.now(), nome, texto };
+                listaTemplates.push(atual);
+                templateSelecionadoId = atual.id;
+            } else { atual.nome = nome; atual.texto = texto; }
+            templateMsg = texto;
+            try {
+                await persistirTemplates();
+                renderizarSeletorTemplates();
+                atualizarPreviaTemplate();
+                const feedback = document.getElementById('template-feedback');
+                if (feedback) {
+                    feedback.textContent = 'Modelo salvo e pronto para usar.';
+                    feedback.classList.add('is-success');
+                    window.setTimeout(() => { feedback.textContent = ''; feedback.classList.remove('is-success'); }, 3200);
+                }
+            }
+            catch (e) { console.error(e); alert('Não foi possível salvar os templates. Confira a conexão com o Supabase.'); }
+        }
+
+        function novoTemplate() {
+            if (!exigirAdmin()) return;
+            const novo = { id: 'template_' + Date.now(), nome: `Novo modelo ${listaTemplates.length + 1}`, texto: 'Olá {nome}! Lembramos do seu título no valor de {valor} na faixa {faixa}.' };
+            listaTemplates.push(novo);
+            templateSelecionadoId = novo.id;
+            aplicarTemplateSelecionado();
+            renderizarSeletorTemplates();
+            const campoNome = document.getElementById('template-nome');
+            campoNome?.focus();
+            campoNome?.select();
+            const feedback = document.getElementById('template-feedback');
+            if (feedback) {
+                feedback.textContent = 'Dê um nome ao modelo e salve para guardar as alterações.';
+                feedback.classList.remove('is-success');
+            }
+        }
+
+        async function excluirTemplate() {
+            if (!exigirAdmin()) return;
+            if (listaTemplates.length <= 1) return alert('Mantenha pelo menos um template salvo.');
+            const atual = listaTemplates.find(t => t.id === templateSelecionadoId);
+            if (!confirm(`Excluir o template "${atual?.nome || ''}"?`)) return;
+            listaTemplates = listaTemplates.filter(t => t.id !== templateSelecionadoId);
+            templateSelecionadoId = listaTemplates[0].id;
+            aplicarTemplateSelecionado();
+            renderizarSeletorTemplates();
+            try { await persistirTemplates(); } catch (e) { console.error(e); alert('Erro ao excluir o template.'); }
+        }
+
+        function ordenarClientes(lista) {
+            const ordem = { 'Pendente': 1, 'Acionado': 2, 'Confirmado': 3, 'Pago': 4, 'Não vão pagar': 5 };
+            return lista.sort((a, b) => {
+                let sA = ordem[a.status] || 99;
+                let sB = ordem[b.status] || 99;
+                if (sA !== sB) return sA - sB;
+                return b.valor - a.valor;
+            });
+        }
+
+        function agendarBusca() {
+            clearTimeout(timerBusca);
+            timerBusca = setTimeout(() => { paginaAtual = 1; renderizar(); }, 180);
+        }
+
+        function mudarFiltrosFaixa() {
+            faixasAtivas = Array.from(document.querySelectorAll('#opcoes-filtro-faixas input[type="checkbox"]:checked')).map(input => input.value);
+            paginaAtual = 1;
+            atualizarResumoFiltroFaixas();
+            renderizar();
+        }
+
+        function atualizarResumoFiltroFaixas() {
+            const resumo = document.getElementById('resumo-filtro-faixas-texto');
+            if (!resumo) return;
+            if (faixasAtivas.length === 0) resumo.textContent = 'Faixas de atraso: Todas';
+            else if (faixasAtivas.length === 1) resumo.textContent = '1 faixa selecionada';
+            else resumo.textContent = `${faixasAtivas.length} faixas selecionadas`;
+        }
+
+        function limparFiltroFaixas() {
+            document.querySelectorAll('#opcoes-filtro-faixas input[type="checkbox"]').forEach(input => { input.checked = false; });
+            mudarFiltrosFaixa();
+        }
+
+        function mudarFiltroStatus(status) {
+            statusAtivo = status;
+            paginaAtual = 1;
+            ['Todos', 'Pendente', 'Acionado', 'Confirmado', 'Pago', 'Não vão pagar'].forEach(s => {
+                let el = document.getElementById(`btn-status-${s}`);
+                if (el) {
+                    if (s === status) el.className = "px-3 py-1.5 text-xs font-bold rounded-lg transition bg-slate-800 text-white whitespace-nowrap shadow-xs";
+                    else el.className = "px-3 py-1.5 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-200 whitespace-nowrap";
+                }
+            });
+            renderizar();
+        }
+
+        function getEstiloFaixa(faixa) {
+            const estilos = {
+                'C | 61 a 90': 'bg-lime-50 border-lime-200 text-lime-800',
+                'D | 91 a 120': 'bg-yellow-50 border-yellow-200 text-yellow-800',
+                'E | 121 a 150': 'bg-amber-50 border-amber-200 text-amber-800',
+                'F | 151 a 180': 'bg-orange-50 border-orange-200 text-orange-800',
+                'G | 181 a 360': 'bg-rose-50 border-rose-200 text-rose-800',
+                'H | 361 a 720': 'bg-red-50 border-red-200 text-red-800',
+                '+720 dias': 'bg-slate-100 border-slate-300 text-slate-800'
+            };
+            return estilos[faixa] || 'bg-slate-50 border-slate-200 text-slate-800';
+        }
+
+        function calcularDadosConsolidado() {
+            const numero = n => Number(n) || 0;
+            const total = clientes.reduce((s,c) => s + numero(c.valor), 0);
+            const pago = clientes.reduce((s,c) => s + (c.status === 'Pago' ? numero(c.valor) : 0), 0);
+            const aberto = clientes.reduce((s,c) => s + (['Pendente','Acionado','Enviado'].includes(c.status) ? numero(c.valor) : 0), 0);
+            const porFaixa = TODAS_FAIXAS.map(faixa => ({
+                faixa,
+                valor: clientes.reduce((s,c) => s + ((c.faixaAtraso || 'C | 61 a 90') === faixa && c.status === 'Pago' ? numero(c.valor) : 0), 0)
+            }));
+            return { total, pago, aberto, porFaixa, reversao: total > 0 ? pago / total * 100 : 0 };
+        }
+
+        function atualizarConsolidadoGeral() {
+            const numero = n => Number(n) || 0;
+            const moeda = n => (n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            const dados = calcularDadosConsolidado();
+            const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+            set('geral-qtd-abas', abas.length.toLocaleString('pt-BR'));
+            set('geral-clientes', clientes.length.toLocaleString('pt-BR'));
+            set('geral-total', moeda(dados.total)); set('geral-pago', moeda(dados.pago)); set('geral-aberto', moeda(dados.aberto));
+            set('geral-reversao', `${dados.reversao.toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1})}%`);
+            // Ranking consolidado: soma pagamentos de cada operador em todas as abas.
+            const rankingEl = document.getElementById('ranking-consolidado-operadores');
+            if (rankingEl) {
+                const porOperador = new Map();
+                clientes.forEach(c => {
+                    const nome = String(c.operador || 'Não atribuído').trim() || 'Não atribuído';
+                    if (!porOperador.has(nome)) porOperador.set(nome, { nome, clientes: 0, pagos: 0, valorPago: 0 });
+                    const item = porOperador.get(nome);
+                    if (c.status === 'Pago') {
+                        item.pagos += 1;
+                        item.valorPago += numero(c.valor);
+                    }
+                    item.clientes += 1;
+                });
+                const ranking = [...porOperador.values()].sort((a, b) => b.valorPago - a.valorPago || a.nome.localeCompare(b.nome, 'pt-BR'));
+                const escapar = valor => String(valor).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+                rankingEl.innerHTML = ranking.length ? ranking.map((item, i) => {
+                    const medalha = ['🥇','🥈','🥉'][i] || `#${i + 1}`;
+                    const pct = dados.pago > 0 ? item.valorPago / dados.pago * 100 : 0;
+                    return `<tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50"><td class="p-3 font-black text-indigo-700">${medalha}</td><td class="p-3 font-bold text-slate-800">${escapar(item.nome)}</td><td class="p-3 text-right">${item.pagos.toLocaleString('pt-BR')}</td><td class="p-3 text-right font-black text-emerald-700">${moeda(item.valorPago)}</td><td class="p-3 text-right"><div class="ranking-share"><span>${pct.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}%</span><div class="ranking-share-track"><div style="width:${pct}%"></div></div></div></td></tr>`;
+                }).join('') : '<tr><td colspan="5" class="p-4 text-center text-slate-400">Nenhum operador encontrado.</td></tr>';
+            }
+            const grafico = document.getElementById('grafico-pago-faixas');
+            if (grafico) {
+                const max = Math.max(...dados.porFaixa.map(x => x.valor), 0);
+                grafico.innerHTML = dados.porFaixa.map((item, index) => {
+                    const pct = max > 0 ? item.valor / max * 100 : 0;
+                    return `<div class="performance-row" role="img" aria-label="${item.faixa}: ${moeda(item.valor)}, ${pct.toLocaleString('pt-BR', {maximumFractionDigits: 1})}% do maior valor">
+                        <div class="performance-label"><span class="performance-index">${String(index + 1).padStart(2, '0')}</span><span>${item.faixa}</span></div>
+                        <div class="performance-track"><div class="performance-fill" style="width:${pct}%"></div></div>
+                        <div class="performance-value"><strong>${moeda(item.valor)}</strong><span>${pct.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1})}% do maior valor</span></div>
+                    </div>`;
+                }).join('');
+            }
+        }
+
+        function mostrarPainel(painelOuId) {
+            const painel = typeof painelOuId === 'string' ? document.getElementById(painelOuId) : painelOuId;
+            if (!painel) return;
+            window.clearTimeout(painel._timerFecharPainel);
+            painel._timerFecharPainel = null;
+            painel.classList.remove('modal-closing', 'hidden');
+            painel.classList.add('flex');
+        }
+
+        function ocultarPainel(painelOuId, aoFechar) {
+            const painel = typeof painelOuId === 'string' ? document.getElementById(painelOuId) : painelOuId;
+            if (!painel) { if (aoFechar) aoFechar(); return; }
+            window.clearTimeout(painel._timerFecharPainel);
+            if (painel.classList.contains('hidden')) { if (aoFechar) aoFechar(); return; }
+            const duracao = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 190;
+            if (!duracao) {
+                painel.classList.add('hidden');
+                painel.classList.remove('modal-closing');
+                if (aoFechar) aoFechar();
+                return;
+            }
+            painel.classList.add('modal-closing');
+            painel._timerFecharPainel = window.setTimeout(() => {
+                painel.classList.add('hidden');
+                painel.classList.remove('modal-closing');
+                painel._timerFecharPainel = null;
+                if (aoFechar) aoFechar();
+            }, duracao);
+        }
+
+        function abrirModalConsolidado() {
+            atualizarConsolidadoGeral();
+            mostrarPainel('modal-consolidado');
+        }
+        function fecharModalConsolidado() { ocultarPainel('modal-consolidado'); }
+
+        function mudarPagina(delta) {
+            paginaAtual = Math.max(1, paginaAtual + delta);
+            renderizar();
+        }
+
+        function exportarAbaExcel() {
+            if (!exigirAdmin()) return;
+            const abaAtual = abas.find(aba => aba.id === abaAtivaId);
+            const registros = clientes.filter(cliente => cliente.abaId === abaAtivaId);
+            const colunas = ['Cliente', 'Contrato', 'Telefone', 'Valor (R$)', 'Faixa de atraso', 'Status', 'Operador', 'Observações', 'Comprovante'];
+            const escaparCSV = valor => {
+                let texto = String(valor ?? '');
+                if (/^[=+\-@\t\r]/.test(texto)) texto = `'${texto}`;
+                return `"${texto.replace(/"/g, '""')}"`;
+            };
+            const linhas = [colunas, ...registros.map(cliente => [
+                cliente.nome,
+                normalizarContrato(cliente.contrato),
+                cliente.telefone,
+                (Number(cliente.valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false }),
+                cliente.faixaAtraso,
+                cliente.status,
+                cliente.operador,
+                cliente.motivo,
+                cliente.comprovante_url
+            ])].map(linha => linha.map(escaparCSV).join(';')).join('\r\n');
+            const conteudo = '\uFEFFsep=;\r\n' + linhas;
+            const arquivo = new Blob([conteudo], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(arquivo);
+            const link = document.createElement('a');
+            const nomeAba = String(abaAtual?.nome || 'aba').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9_-]+/g, '_');
+            const dataAtual = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+            link.href = url;
+            link.download = `clientes_${nomeAba}_${dataAtual}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        function renderizar() {
+            const clientesDaAba = clientes.filter(c => c.abaId === abaAtivaId);
+            const tbody = document.getElementById('tabela-clientes');
+            const termoBusca = document.getElementById('filtro-busca').value.toLowerCase();
+            
+            let filtrados = clientesDaAba.filter(c => c.nome.toLowerCase().includes(termoBusca) || c.telefone.includes(termoBusca) || normalizarContrato(c.contrato).toLowerCase().includes(termoBusca) || (c.operador && c.operador.toLowerCase().includes(termoBusca)));
+            if (faixasAtivas.length > 0) filtrados = filtrados.filter(c => faixasAtivas.includes(normalizarFaixa(c.faixaAtraso)));
+            if (statusAtivo !== 'Todos') filtrados = filtrados.filter(c => c.status === statusAtivo);
+            filtrados = ordenarClientes(filtrados);
+            const totalFiltrados = filtrados.length;
+            const totalPaginas = Math.max(1, Math.ceil(totalFiltrados / CLIENTES_POR_PAGINA));
+            paginaAtual = Math.min(paginaAtual, totalPaginas);
+            const inicioPagina = (paginaAtual - 1) * CLIENTES_POR_PAGINA;
+            const clientesPagina = filtrados.slice(inicioPagina, inicioPagina + CLIENTES_POR_PAGINA);
+            const pagInfo = document.getElementById('paginacao-info');
+            const pagNum = document.getElementById('paginacao-pagina');
+            const prev = document.getElementById('pagina-anterior');
+            const next = document.getElementById('pagina-proxima');
+            if (pagInfo) pagInfo.textContent = totalFiltrados ? `Exibindo ${inicioPagina + 1}–${Math.min(inicioPagina + CLIENTES_POR_PAGINA, totalFiltrados)} de ${totalFiltrados} clientes` : '0 clientes';
+            if (pagNum) pagNum.textContent = `${paginaAtual} / ${totalPaginas}`;
+            if (prev) prev.disabled = paginaAtual <= 1;
+            if (next) next.disabled = paginaAtual >= totalPaginas;
+
+            const valorTotal = clientesDaAba.reduce((acc, curr) => acc + curr.valor, 0);
+            const valorPago = clientesDaAba.filter(c => c.status === 'Pago').reduce((acc, curr) => acc + curr.valor, 0);
+            const valorConfirmado = clientesDaAba.filter(c => c.status === 'Confirmado').reduce((acc, curr) => acc + curr.valor, 0);
+            const valorAberto = clientesDaAba.filter(c => ['Pendente', 'Acionado', 'Enviado'].includes(c.status)).reduce((acc, curr) => acc + curr.valor, 0);
+            const valorRecusado = clientesDaAba.filter(c => c.status === 'Não vão pagar').reduce((acc, curr) => acc + curr.valor, 0);
+            
+            document.getElementById('card-valorpago').innerText = valorPago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            document.getElementById('card-valortotal').innerText = valorAberto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            document.getElementById('card-acionados').innerText = clientesDaAba.filter(c => c.status !== 'Pendente').length + " / " + clientesDaAba.length;
+            document.getElementById('card-pagantes').innerText = clientesDaAba.filter(c => c.status === 'Pago').length;
+
+            const pctPago = valorTotal > 0 ? (valorPago / valorTotal) * 100 : 0;
+            const pctConf = valorTotal > 0 ? (valorConfirmado / valorTotal) * 100 : 0;
+            const pctAberto = valorTotal > 0 ? (valorAberto / valorTotal) * 100 : 100;
+            const pctRecusado = valorTotal > 0 ? (valorRecusado / valorTotal) * 100 : 0;
+
+            document.getElementById('barra-pagos').style.width = `${pctPago}%`;
+            document.getElementById('barra-confirmados').style.width = `${pctConf}%`;
+            document.getElementById('barra-abertos').style.width = `${pctAberto}%`;
+            document.getElementById('barra-recusados').style.width = `${pctRecusado}%`;
+            document.getElementById('texto-porcentagem').innerText = `${pctPago.toFixed(1)}% Recuperado`;
+            const graficoDistribuicao = document.getElementById('grafico-distribuicao');
+            if (graficoDistribuicao) {
+                graficoDistribuicao.style.setProperty('--pct-pagos', `${pctPago}%`);
+                graficoDistribuicao.style.setProperty('--pct-confirmados', `${pctConf}%`);
+                graficoDistribuicao.style.setProperty('--pct-abertos', `${pctAberto}%`);
+                graficoDistribuicao.style.setProperty('--pct-recusados', `${pctRecusado}%`);
+            }
+            const textoDonut = document.getElementById('texto-donut');
+            if (textoDonut) textoDonut.innerText = `${pctPago.toFixed(1)}%`;
+
+            document.getElementById('legenda-val-pago').innerText = valorPago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            document.getElementById('legenda-pct-pago').innerText = `(${pctPago.toFixed(1)}%)`;
+            document.getElementById('legenda-val-confirmado').innerText = valorConfirmado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            document.getElementById('legenda-pct-confirmado').innerText = `(${pctConf.toFixed(1)}%)`;
+            document.getElementById('legenda-val-aberto').innerText = valorAberto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            document.getElementById('legenda-pct-aberto').innerText = `(${pctAberto.toFixed(1)}%)`;
+            document.getElementById('legenda-val-recusado').innerText = valorRecusado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            document.getElementById('legenda-pct-recusado').innerText = `(${pctRecusado.toFixed(1)}%)`;
+
+            // PREENCHER RANKING DE OPERADORES & FAIXAS
+            const gridOperadores = document.getElementById('grid-operadores');
+            const gridAberto = document.getElementById('grid-faixas-aberto');
+            const gridPago = document.getElementById('grid-faixas-pago');
+            
+            if (gridOperadores && gridAberto && gridPago) {
+                gridOperadores.innerHTML = '';
+                gridAberto.innerHTML = '';
+                gridPago.innerHTML = '';
+
+                // Agrupando dados por Operador
+                let operadoresUnicos = [...new Set(clientesDaAba.map(c => c.operador || 'Não atribuído'))];
+                
+                let dadosOperadores = operadoresUnicos.map(op => {
+                    let cOp = clientesDaAba.filter(c => (c.operador || 'Não atribuído') === op);
+                    let vPagoOp = cOp.filter(c => c.status === 'Pago').reduce((a, b) => a + b.valor, 0);
+                    let vConfOp = cOp.filter(c => c.status === 'Confirmado').reduce((a, b) => a + b.valor, 0);
+                    let vRecOp = cOp.filter(c => c.status === 'Não vão pagar').reduce((a, b) => a + b.valor, 0);
+                    let vAbertoOp = cOp.filter(c => ['Pendente', 'Acionado', 'Enviado'].includes(c.status)).reduce((a, b) => a + b.valor, 0);
+                    return { op, cOp, vPagoOp, vConfOp, vRecOp, vAbertoOp };
+                });
+
+                // ORDENAÇÃO DO RANKING: Do maior valor pago para o menor
+                dadosOperadores.sort((a, b) => b.vPagoOp - a.vPagoOp);
+                const totalPagoOperadores = dadosOperadores.reduce((total, item) => total + item.vPagoOp, 0);
+                const totalAbertoAba = clientesDaAba.filter(c => ['Pendente', 'Acionado', 'Enviado'].includes(c.status)).reduce((total, c) => total + c.valor, 0);
+
+                if (dadosOperadores.length === 0) {
+                    gridOperadores.innerHTML = `<p class="text-xs text-slate-400 italic col-span-full">Nenhum operador registrado nesta aba.</p>`;
+                } else {
+                    dadosOperadores.forEach((item, index) => {
+                        const participacaoPago = totalPagoOperadores > 0 ? item.vPagoOp / totalPagoOperadores * 100 : 0;
+                        let medalha = '';
+                        if (index === 0) medalha = '🥇 ';
+                        else if (index === 1) medalha = '🥈 ';
+                        else if (index === 2) medalha = '🥉 ';
+                        else medalha = `#${index + 1} `;
+
+                        gridOperadores.innerHTML += `
+                            <div class="operator-report-card bg-white p-3 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
+                                <div class="flex justify-between items-center border-b border-slate-100 pb-1.5">
+                                    <span class="text-xs font-black text-indigo-900">${medalha}${item.op}</span>
+                                    <span class="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-bold">${item.cOp.length} cliente(s)</span>
+                                </div>
+                                <div class="operator-share-meter"><div><span>Participação nos pagamentos</span><strong>${participacaoPago.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1})}%</strong></div><div class="mini-progress"><div class="mini-progress-fill" style="width:${participacaoPago}%"></div></div></div>
+                                <div class="space-y-1 text-[11px]">
+                                    <div class="flex justify-between"><span class="text-slate-500">Pago:</span> <span class="font-bold text-emerald-600">${item.vPagoOp.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                                    <div class="flex justify-between"><span class="text-slate-500">Confirmado:</span> <span class="font-bold text-teal-600">${item.vConfOp.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                                    <div class="flex justify-between"><span class="text-slate-500">Em Aberto:</span> <span class="font-bold text-amber-600">${item.vAbertoOp.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                                    <div class="flex justify-between"><span class="text-slate-500">Não vão pagar:</span> <span class="font-bold text-rose-600">${item.vRecOp.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                                </div>
+                                <div class="pt-1 border-t border-slate-100 flex items-center gap-1">
+                                    <input type="text" onchange="atualizarOperadorLotePorNome('${item.op}', this.value)" placeholder="✏️ Renomear operador..." class="w-full text-[10px] p-1 bg-slate-50 border border-slate-200 rounded outline-none focus:border-indigo-500 transition">
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+
+                TODAS_FAIXAS.forEach(f => {
+                    let cFaixa = clientesDaAba.filter(c => (c.faixaAtraso || 'C | 61 a 90') === f);
+                    
+                    let cAberto = cFaixa.filter(c => ['Pendente', 'Acionado', 'Enviado'].includes(c.status));
+                    let vAberto = cAberto.reduce((a, b) => a + b.valor, 0);
+                    let pctAbertoFaixa = totalAbertoAba > 0 ? vAberto / totalAbertoAba * 100 : 0;
+                    
+                    gridAberto.innerHTML += `
+                        <div class="range-report-card p-3 rounded-xl border ${getEstiloFaixa(f)} flex flex-col justify-between shadow-xs">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-[10px] uppercase font-bold">${f}</span>
+                            </div>
+                            <div class="range-share-meter"><div class="mini-progress"><div class="mini-progress-fill" style="width:${pctAbertoFaixa}%"></div></div><span>${pctAbertoFaixa.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1})}% do aberto</span></div>
+                            <div>
+                                <p class="text-sm font-black">${vAberto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                                <span class="text-[10px] font-medium opacity-80">${cAberto.length} cliente(s)</span>
+                            </div>
+                        </div>
+                    `;
+
+                    let cPago = cFaixa.filter(c => c.status === 'Pago');
+                    let vPago = cPago.reduce((a, b) => a + b.valor, 0);
+                    let vTotalFaixa = cFaixa.reduce((a, b) => a + b.valor, 0);
+                    let pctFaixa = vTotalFaixa > 0 ? ((vPago / vTotalFaixa) * 100).toFixed(1) : 0;
+
+                    gridPago.innerHTML += `
+                        <div class="range-report-card p-3 rounded-xl border ${getEstiloFaixa(f)} flex flex-col justify-between shadow-xs">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-[10px] uppercase font-bold">${f}</span>
+                                <span class="text-[9px] bg-white/80 px-1.5 py-0.5 rounded font-bold">${pctFaixa}%</span>
+                            </div>
+                            <div class="mini-progress" role="img" aria-label="${pctFaixa}% recuperado nesta faixa"><div class="mini-progress-fill" style="width:${pctFaixa}%"></div></div>
+                            <div>
+                                <p class="text-sm font-black">${vPago.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                                <span class="text-[10px] font-medium opacity-80">${cPago.length} de ${cFaixa.length} pago(s)</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            // TABELA
+            tbody.innerHTML = '';
+            if (filtrados.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-slate-400 font-medium">Nenhum cliente encontrado.</td></tr>`;
+                return;
+            }
+
+           let linhasTabela = '';
+           clientesPagina.forEach(c => {
+                let badgeClass = 'bg-slate-100 text-slate-600 border-slate-200';
+                if(c.status === 'Enviado') badgeClass = 'bg-indigo-50 text-indigo-700 border-indigo-200';
+                else if(c.status === 'Acionado') badgeClass = 'bg-blue-50 text-blue-700 border-blue-200';
+                else if(c.status === 'Confirmado') badgeClass = 'bg-teal-50 text-teal-700 border-teal-200 font-bold';
+                else if(c.status === 'Pago') badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold';
+                else if(c.status === 'Não vão pagar') badgeClass = 'bg-rose-50 text-rose-700 border-rose-200';
+                
+                // Variável do comprovante que você já havia criado
+                let iconeComprovante = c.comprovante_url
+    ? `<button type="button" onclick='abrirModalComprovante(${JSON.stringify(c.comprovante_url)})' class="text-indigo-600 font-bold underline text-xs cursor-pointer hover:text-indigo-800 transition" title="Ver Comprovante">📄 Ver</button>`
+    : (isAdmin ? `<label class="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded text-xs">
+            📎 Anexar
+            <input type="file" accept="image/*,application/pdf" class="hidden" onchange="enviarComprovante(${c.id}, this)">
+       </label>` : `<span class="text-slate-400 text-xs">—</span>`);
+
+                let row = `
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="p-4">
+                            <div class="font-bold text-slate-700">${c.nome}</div>
+                            <div class="text-[10px] text-slate-400 font-medium flex items-center gap-1">Op: <span class="text-indigo-600 font-semibold">${c.operador || 'Não atribuído'}</span></div>
+                        </td>
+                        <td class="p-4 min-w-36">
+                            <input type="text" ${isAdmin ? '' : 'readonly'} maxlength="64" pattern="[A-Za-z0-9/-]*" title="Use apenas letras, números, hífen (-) e barra (/)." onchange="atualizarContratoCliente(${c.id}, this.value)" value="${escaparHTML(c.contrato)}" placeholder="${isAdmin ? 'Ex.: AB-123/45' : 'Sem contrato'}" class="client-contract w-32 text-xs font-mono px-2.5 py-2 rounded-lg border border-slate-200 bg-white/80 outline-none ${isAdmin ? '' : 'opacity-70 cursor-not-allowed'}">
+                        </td>
+                        <td class="p-4 font-mono text-slate-600">${c.telefone}</td>
+                        <td class="p-4 font-black text-slate-800">${c.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                        <td class="p-4">
+                            <select ${isAdmin ? '' : 'disabled'} onchange="atualizarFaixaCliente(${c.id}, this.value)" class="text-xs font-bold px-2.5 py-1.5 rounded-xl border outline-none ${getEstiloFaixa(c.faixaAtraso)} bg-transparent ${isAdmin ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}">
+                                ${TODAS_FAIXAS.map(f => `<option value="${f}" ${c.faixaAtraso === f ? 'selected' : ''}>${f}</option>`).join('')}
+                            </select>
+                        </td>
+                        <td class="p-4">
+                            <select ${isAdmin ? '' : 'disabled'} onchange="atualizarStatusCliente(${c.id}, this.value)" class="text-xs font-bold px-2.5 py-1.5 rounded-xl border ${badgeClass} outline-none ${isAdmin ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}">
+                                <option value="Pendente" ${c.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
+                                <option value="Enviado" ${c.status === 'Enviado' ? 'selected' : ''}>Enviado</option>
+                                <option value="Acionado" ${c.status === 'Acionado' ? 'selected' : ''}>Acionado</option>
+                                <option value="Confirmado" ${c.status === 'Confirmado' ? 'selected' : ''}>✅ Confirmado</option>
+                                <option value="Pago" ${c.status === 'Pago' ? 'selected' : ''}>Pago</option>
+                                <option value="Não vão pagar" ${c.status === 'Não vão pagar' ? 'selected' : ''}>❌ Não vão pagar</option>
+                            </select>
+                        </td>
+                        <td class="p-4 w-64">
+                            <input type="text" ${isAdmin ? '' : 'readonly'} onchange="atualizarMotivoCliente(${c.id}, this.value)" value="${c.motivo}" placeholder="${isAdmin ? 'Adicione nota...' : 'Somente visualização'}" class="w-full text-xs p-2 bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-500 outline-none transition placeholder-slate-400 ${isAdmin ? '' : 'opacity-70 cursor-not-allowed'}">
+                        </td>
+                        <!-- ADICIONADO AQUI: Coluna para o Comprovante -->
+                        <td class="p-4 text-center">
+                            ${iconeComprovante}
+                        </td>
+                        <td class="p-4 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                ${isAdmin ? `<button onclick="acionarWhatsApp(${c.id})" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-3 py-1.5 rounded-xl font-bold transition shadow-xs text-xs">WA</button>
+                                <button onclick="removerCliente(${c.id})" class="text-slate-400 hover:text-rose-600 font-bold transition">🗑️</button>` : `<span class="text-[10px] text-slate-400 font-semibold">Visualização</span>`}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                linhasTabela += row;
+            });
+            tbody.innerHTML = linhasTabela;
+        }
+
+        async function atualizarStatusCliente(id, status) {
+            if (!exigirAdmin()) return;
+            let cl = clientes.find(c => c.id === id);
+            if (cl) {
+                cl.status = status;
+                await db.from('clientes').update({ status: status }).eq('id', id);
+                renderizar();
+            }
+        }
+
+        async function atualizarFaixaCliente(id, faixa) {
+            if (!exigirAdmin()) return;
+            let cl = clientes.find(c => c.id === id);
+            if (cl) {
+                cl.faixaAtraso = faixa;
+                await db.from('clientes').update({ faixa_atraso: faixa }).eq('id', id);
+                renderizar();
+            }
+        }
+
+        async function atualizarMotivoCliente(id, motivo) {
+            if (!exigirAdmin()) return;
+            let cl = clientes.find(c => c.id === id);
+            if(cl) {
+                cl.motivo = motivo;
+                await db.from('clientes').update({ motivo: motivo }).eq('id', id);
+            }
+        }
+
+        async function atualizarContratoCliente(id, valor) {
+            if (!exigirAdmin()) return;
+            const contrato = normalizarContrato(valor);
+            if (!contratoValido(contrato)) {
+                alert('Contrato inválido. Use apenas letras, números, hífen (-) e barra (/).');
+                renderizar();
+                return;
+            }
+            const cliente = clientes.find(c => c.id === id);
+            if (!cliente) return;
+            const { error } = await db.from('clientes').update({ contrato: contrato || null }).eq('id', id);
+            if (error) {
+                alert('Erro ao atualizar contrato: ' + error.message);
+                await carregarDadosSilencioso();
+                return;
+            }
+            cliente.contrato = contrato;
+            renderizar();
+        }
+
+       async function enviarComprovante(clienteId, inputElement) {
+    if (!exigirAdmin()) return;
+    const arquivo = inputElement.files[0];
+    if (!arquivo) return;
+
+    const nomeArquivo = `${clienteId}_${Date.now()}_${arquivo.name}`;
+    const caminhoStorage = `comprovantes/${nomeArquivo}`;
+
+    try {
+        const { data: uploadData, error: uploadError } = await db.storage
+            .from('comprovantes')
+            .upload(caminhoStorage, arquivo);
+
+        if (uploadError) throw new Error("Erro no upload: " + uploadError.message);
+
+        const { data: urlData } = db.storage
+            .from('comprovantes')
+            .getPublicUrl(caminhoStorage);
+
+        const urlPublica = urlData.publicUrl;
+
+        const { error: updateError } = await db
+            .from('clientes')
+            .update({ 
+                comprovante_url: urlPublica,
+                status: 'Pago' 
+            })
+            .eq('id', clienteId);
+
+        if (updateError) throw new Error("Erro ao atualizar cliente: " + updateError.message);
+
+        alert("Comprovante enviado com sucesso e status atualizado para Pago!");
+        
+        await carregarDadosSilencioso();
+        renderizar();
+
+    } catch (error) {
+        console.error(error);
+        alert(error.message);
+    }
+}
+        
+        async function atualizarOperadorLotePorNome(antigoOp, novoOp) {
+            if (!exigirAdmin()) return;
+            if (!novoOp || !novoOp.trim()) return;
+            let ids = clientes.filter(c => c.abaId === abaAtivaId && (c.operador || 'Não atribuído') === antigoOp).map(c => c.id);
+            if (ids.length > 0) {
+                await db.from('clientes').update({ operador: novoOp.trim() }).in('id', ids);
+                await carregarDadosSilencioso();
+            }
+        }
+
+        async function salvarCliente(e) {
+            if (!exigirAdmin()) return;
+            e.preventDefault();
+            const nome = document.getElementById('nome').value.toUpperCase();
+            const telefone = document.getElementById('telefone').value.replace(/\D/g, '');
+            const valor = parseFloat(document.getElementById('valor').value);
+            const operador = document.getElementById('operador').value.trim() || 'Não atribuído';
+            const faixa = document.getElementById('faixaAtraso').value;
+            const contrato = normalizarContrato(document.getElementById('contrato').value);
+
+            if (!contratoValido(contrato)) {
+                alert('Contrato inválido. Use apenas letras, números, hífen (-) e barra (/).');
+                return;
+            }
+
+            if (nome && telefone && valor) {
+                const novoCliente = { 
+                    id: Date.now(), 
+                    aba_id: abaAtivaId, 
+                    nome, 
+                    telefone, 
+                    valor, 
+                    faixa_atraso: faixa, 
+                    status: 'Pendente', 
+                    motivo: '',
+                    contrato: contrato || null,
+                    operador
+                };
+                const { data, error } = await db.from('clientes').insert([novoCliente]).select();
+                if(error) return alert("Erro ao salvar cliente: " + error.message);
+                
+                if(data && data.length > 0) {
+                    clientes.push({
+                        id: Number(data[0].id),
+                        abaId: data[0].aba_id,
+                        nome: data[0].nome,
+                        telefone: data[0].telefone,
+                        valor: parseFloat(data[0].valor),
+                        faixaAtraso: normalizarFaixa(data[0].faixa_atraso),
+                        status: data[0].status,
+                        contrato: normalizarContrato(data[0].contrato),
+                        motivo: data[0].motivo,
+                        operador: data[0].operador || 'Não atribuído'
+                    });
+                }
+                fecharModal();
+                renderizar();
+                document.getElementById('form-cliente').reset();
+            }
+        }
+
+        async function processarImportacaoLote() {
+            if (!exigirAdmin()) return;
+            const texto = document.getElementById('texto-lote').value.trim();
+            if(!texto) return;
+
+            const linhas = texto.split('\n');
+            let insercoes = [];
+            let erroContrato = '';
+            
+            linhas.forEach((linha, index) => {
+                let partes = linha.split(';');
+                if (partes.length >= 3) {
+                    const nomeStr = partes[0].trim().toUpperCase();
+                    const valStr = partes[2].replace(',', '.').trim();
+                    const numVal = parseFloat(valStr);
+                    const contrato = normalizarContrato(partes[5] || '');
+                    if (!contratoValido(contrato)) {
+                        erroContrato = `Contrato inválido na linha ${index + 1}. Use apenas letras, números, hífen (-) e barra (/).`;
+                        return;
+                    }
+                    if(nomeStr && !isNaN(numVal)) {
+                        insercoes.push({
+                            id: Date.now() + index,
+                            aba_id: abaAtivaId, 
+                            nome: nomeStr, 
+                            telefone: partes[1].replace(/\D/g, ''),
+                            valor: numVal, 
+                            faixa_atraso: partes[3] ? normalizarFaixa(partes[3]) : 'C | 61 a 90', 
+                            status: 'Pendente', 
+                            motivo: '',
+                            contrato: contrato || null,
+                            operador: partes[4] ? partes[4].trim() : 'Não atribuído'
+                        });
+                    }
+                }
+            });
+
+            if (erroContrato) {
+                alert(erroContrato);
+                return;
+            }
+
+            if (insercoes.length > 0) {
+                const { error: errInsercao } = await db.from('clientes').insert(insercoes).select('id');
+                if (errInsercao) {
+                    console.error("Erro ao inserir:", errInsercao);
+                    alert("Erro ao importar clientes: " + errInsercao.message);
+                    return;
+                }
+                await carregarDadosSilencioso();
+                fecharModalLote();
+                alert(`${insercoes.length} clientes importados com sucesso!`);
+            } else {
+                alert("Nenhum dado válido. Use: NOME;TELEFONE;VALOR;FAIXA;OPERADOR;CONTRATO (opcional)");
+            }
+        }
+
+        async function processarBaixaEmMassa() {
+            if (!exigirAdmin()) return;
+            const texto = document.getElementById('texto-lote').value.trim();
+            if(!texto) return;
+            const linhas = texto.split('\n');
+            let telefones = linhas.map(l => l.trim().replace(/\D/g, '')).filter(t => t.length > 0);
+            
+            if (telefones.length > 0) {
+                const ids = clientes.filter(c => c.abaId === abaAtivaId && telefones.includes(c.telefone)).map(c => c.id);
+                if(ids.length > 0) {
+                    await db.from('clientes').update({ status: 'Acionado' }).in('id', ids);
+                    await carregarDadosSilencioso();
+                    alert(`Status de ${ids.length} clientes atualizado para "Acionado"!`);
+                    fecharModalLote();
+                } else alert("Nenhum telefone encontrado na aba atual.");
+            }
+        }
+
+        function montarMensagemCliente(c) {
+            const v = Number(c.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            return templateMsg.replace(/{nome}/g, c.nome || '')
+                .replace(/{valor}/g, v)
+                .replace(/{faixa}/g, c.faixaAtraso || '');
+        }
+
+        function telefoneWhatsApp(c) {
+            let telefone = String(c.telefone || '').replace(/\D/g, '');
+            if (!telefone.startsWith('55')) telefone = '55' + telefone;
+            return telefone;
+        }
+
+        async function acionarWhatsApp(id) {
+            const c = clientes.find(cliente => cliente.id === id);
+            if (!c) return;
+            const url = 'https://web.whatsapp.com/send?phone=' + telefoneWhatsApp(c) + '&text=' + encodeURIComponent(montarMensagemCliente(c));
+            window.open(url, '_blank', 'noopener');
+            alert('Conversa aberta com a mensagem preenchida. O status não será alterado automaticamente: marque como Acionado somente depois de confirmar o envio.');
+        }
+
+        async function carregarContasWhatsApp() {
+            const select = document.getElementById('auto-conta-whatsapp');
+            if (!select) return [];
+            const selecionada = select.value || 'whatsapp-1';
+            const r = await fetch('http://127.0.0.1:8765/accounts');
+            if (!r.ok) throw new Error('Não foi possível listar as contas');
+            const d = await r.json();
+            const contas = d.accounts || [];
+            select.innerHTML = '';
+            contas.forEach(conta => {
+                const option = document.createElement('option');
+                option.value = conta.id;
+                option.textContent = `${conta.label} — ${conta.connected ? 'Conectado' : 'Leia o QR Code'}`;
+                select.appendChild(option);
+            });
+            if (contas.some(c => c.id === selecionada)) select.value = selecionada;
+            else if (contas.length) select.value = contas[0].id;
+            return contas;
+        }
+
+        async function adicionarContaWhatsApp() {
+            if (!exigirAdmin()) return;
+            const botao = document.getElementById('btn-adicionar-whatsapp');
+            try {
+                botao.disabled = true;
+                botao.textContent = 'Abrindo navegador...';
+                const r = await fetch('http://127.0.0.1:8765/accounts', { method: 'POST' });
+                const d = await r.json();
+                if (!r.ok) throw new Error(d.detail || 'Falha ao abrir nova conta');
+                await carregarContasWhatsApp();
+                document.getElementById('auto-conta-whatsapp').value = d.id;
+                document.getElementById('auto-mensagem').textContent = `${d.label}: leia o QR Code na nova janela do navegador. Depois clique em Verificar conexão.`;
+                await verificarAgenteWhatsApp();
+            } catch (e) {
+                alert('Não foi possível conectar outro WhatsApp. Verifique se o agente está aberto. ' + e.message);
+            } finally {
+                botao.disabled = false;
+                botao.textContent = '＋ Conectar outro WhatsApp';
+            }
+        }
+
+        async function verificarAgenteWhatsApp() {
+            if (!exigirAdmin()) return;
+            const badge = document.getElementById('agente-status');
+            try {
+                const contas = await carregarContasWhatsApp();
+                const accountId = document.getElementById('auto-conta-whatsapp')?.value || 'whatsapp-1';
+                const conta = contas.find(c => c.id === accountId);
+                const pronto = !!conta?.connected;
+                badge.textContent = pronto ? `${conta.label} conectado` : (conta ? `${conta.label} · leia o QR Code` : 'Agente ativo · sem conta');
+                badge.className = 'text-[10px] font-bold px-2.5 py-1 rounded-lg ' + (pronto ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700');
+                return pronto;
+            } catch (e) {
+                badge.textContent = 'Agente offline';
+                badge.className = 'text-[10px] font-bold px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700';
+                return false;
+            }
+        }
+
+        document.getElementById('auto-conta-whatsapp')?.addEventListener('change', verificarAgenteWhatsApp);
+        carregarContasWhatsApp().then(verificarAgenteWhatsApp).catch(() => {});
+
+        function clientesPendentesDaAba() {
+            return clientes.filter(c =>
+                c.abaId === abaAtivaId &&
+                String(c.status || '').trim().toLowerCase() === 'pendente'
+            );
+        }
+
+        function atualizarResumoFila() {
+            const pendentes = clientesPendentesDaAba();
+            const validos = pendentes.filter(c => String(c.telefone || '').replace(/\D/g, '').length >= 10);
+            const total = document.getElementById('auto-total');
+            if (total) total.textContent = validos.length;
+            const msg = document.getElementById('auto-mensagem');
+            if (msg && !envioAutoAtivo) {
+                msg.textContent = `${pendentes.length} cliente(s) pendente(s) nesta aba; ${validos.length} com telefone válido para envio.`;
+            }
+            return validos;
+        }
+
+        let resolverModalEnvio = null;
+        function confirmarEnvioNaPagina(total) {
+            return new Promise(resolve => {
+                resolverModalEnvio = resolve;
+                const modal = document.getElementById('modal-confirmar-envio');
+                document.getElementById('modal-confirmar-texto').textContent =
+                    `Serão processados ${total} clientes pendentes da aba atual. Deseja iniciar?`;
+                mostrarPainel(modal);
+            });
+        }
+        function resolverConfirmacaoEnvio(aceito) {
+            if (!resolverModalEnvio) return;
+            const modal = document.getElementById('modal-confirmar-envio');
+            const resolver = resolverModalEnvio;
+            resolverModalEnvio = null;
+            ocultarPainel(modal, () => { if (resolver) resolver(!!aceito); });
+        }
+        window.resolverConfirmacaoEnvio = resolverConfirmacaoEnvio;
+
+        async function iniciarEnvioAutomatico() {
+            const statusEl = document.getElementById('auto-mensagem');
+            if (statusEl) statusEl.textContent = 'Iniciando verificação da fila...';
+            try {
+            if (!exigirAdmin()) {
+                if (statusEl) statusEl.textContent = 'Ação bloqueada: entre com uma conta administradora.';
+                return;
+            }
+            if (envioAutoAtivo) {
+                if (statusEl) statusEl.textContent = 'Já existe um envio em andamento.';
+                return;
+            }
+            const pendentes = clientesPendentesDaAba();
+            // Prioriza sempre os clientes pendentes de maior valor para o menor.
+            // A ordenação ocorre antes de aplicar o limite do lote (ex.: primeiros 5).
+            const elegiveis = atualizarResumoFila().slice().sort((a, b) => {
+                const valorA = Number(a.valor) || 0;
+                const valorB = Number(b.valor) || 0;
+                return valorB - valorA;
+            });
+            const limiteInformado = Number(document.getElementById('auto-limite-clientes')?.value || 5);
+            if (!Number.isInteger(limiteInformado) || limiteInformado < 1 || limiteInformado > 500) {
+                alert('Informe uma quantidade entre 1 e 500 clientes.');
+                return;
+            }
+            const fila = elegiveis.slice(0, limiteInformado);
+            if (!fila.length) {
+                const semTelefone = pendentes.filter(c => String(c.telefone || '').replace(/\D/g, '').length < 10).length;
+                alert(`Não há clientes aptos para envio nesta aba.\nPendentes: ${pendentes.length}\nCom telefone válido: 0\nSem telefone/telefone curto: ${semTelefone}\n\nConfira a aba selecionada e os telefones cadastrados.`);
+                return;
+            }
+            if (!(await confirmarEnvioNaPagina(fila.length))) return;
+            const pronto = await verificarAgenteWhatsApp();
+            if (!pronto) { alert('Inicie o agente no Windows e conecte o WhatsApp Web antes de enviar.'); return; }
+            envioAutoAtivo = true; envioAutoAbortar = false;
+            document.getElementById('btn-auto-iniciar').disabled = true;
+            document.getElementById('btn-auto-parar').classList.remove('hidden');
+            document.getElementById('auto-total').textContent = fila.length;
+            document.getElementById('auto-enviados').textContent = '0';
+            document.getElementById('auto-falhas').textContent = '0';
+            let enviados = 0, falhas = 0;
+            try {
+                for (let i = 0; i < fila.length; i++) {
+                    if (envioAutoAbortar) break;
+                    const c = fila[i];
+                    document.getElementById('auto-mensagem').textContent = `Enviando ${i + 1}/${fila.length}: ${c.nome}`;
+                    let mensagemJaEnviada = false;
+                    try {
+                        const resp = await fetch('http://127.0.0.1:8765/send', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                phone: telefoneWhatsApp(c),
+                                message: montarMensagemCliente(c),
+                                account_id: document.getElementById('auto-conta-whatsapp')?.value || 'whatsapp-1'
+                            })
+                        });
+                        const result = await resp.json();
+                        if (!resp.ok || !result.sent) throw new Error(result.detail || result.error || 'Envio não confirmado pelo agente');
+                        mensagemJaEnviada = true;
+                        const { data: atualizado, error: erroUpdate } = await db
+                            .from('clientes')
+                            .update({ status: 'Acionado' })
+                            .eq('id', c.id)
+                            .select('id,status')
+                            .maybeSingle();
+                        if (erroUpdate) throw new Error('Mensagem enviada, mas o Supabase recusou atualizar o status: ' + erroUpdate.message);
+                        if (!atualizado) throw new Error('Mensagem enviada, mas nenhum registro foi atualizado. Verifique o ID do cliente e as políticas RLS do Supabase.');
+                        c.status = 'Acionado';
+                        enviados++;
+                    } catch (err) {
+                        console.error('Falha no envio/atualização:', c.id, err);
+                        falhas++;
+                        if (mensagemJaEnviada) {
+                            document.getElementById('auto-mensagem').textContent =
+                                `A mensagem para ${c.nome} foi enviada, mas o status não foi salvo: ${err.message}. Fila pausada para evitar reenvio duplicado.`;
+                            envioAutoAbortar = true;
+                        }
+                    }
+                    document.getElementById('auto-enviados').textContent = enviados;
+                    document.getElementById('auto-falhas').textContent = falhas;
+                    document.getElementById('auto-progresso').style.width = (((i + 1) / fila.length) * 100) + '%';
+                    renderizar();
+                    if (i < fila.length - 1 && !envioAutoAbortar) {
+                        let restante = 10;
+                        while (restante > 0 && !envioAutoAbortar) {
+                            document.getElementById('auto-mensagem').textContent =
+                                `Acionado ${i + 1}/${fila.length}. Próximo envio em ${restante}s...`;
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            restante--;
+                        }
+                    }
+                }
+                document.getElementById('auto-mensagem').textContent = envioAutoAbortar
+                    ? `Fila interrompida. ${enviados} enviados e ${falhas} falhas.`
+                    : `Processo finalizado. ${enviados} enviados e ${falhas} falhas.`;
+            } finally {
+                envioAutoAtivo = false;
+                document.getElementById('btn-auto-iniciar').disabled = false;
+                document.getElementById('btn-auto-parar').classList.add('hidden');
+                renderizar();
+            }
+            } catch (erroGeral) {
+                console.error('Erro ao iniciar envio automático:', erroGeral);
+                if (statusEl) statusEl.textContent = 'Erro ao iniciar: ' + (erroGeral?.message || String(erroGeral));
+                alert('Erro ao iniciar o envio automático: ' + (erroGeral?.message || String(erroGeral)));
+            }
+        }
+
+        function pararEnvioAutomatico() {
+            if (!exigirAdmin()) return;
+            envioAutoAbortar = true;
+            document.getElementById('auto-mensagem').textContent = 'Interrompendo após o envio em andamento...';
+        }
+
+        async function removerCliente(id) {
+            if (!exigirAdmin()) return;
+            if (confirm("Deseja excluir este cliente?")) {
+                await db.from('clientes').delete().eq('id', id);
+                clientes = clientes.filter(c => c.id !== id);
+                renderizar();
+            }
+        }
+
+        async function excluirTodos() {
+            if (!exigirAdmin()) return;
+            let count = clientes.filter(c => c.abaId === abaAtivaId).length;
+            if (count === 0) return alert("A aba está vazia.");
+            if (confirm(`Deseja apagar TODOS os ${count} clientes desta aba?`)) {
+                await db.from('clientes').delete().eq('aba_id', abaAtivaId);
+                clientes = clientes.filter(c => c.abaId !== abaAtivaId);
+                renderizar();
+            }
+        }
+
+       // Modais
+        function abrirModal() { mostrarPainel('modal'); }
+        function fecharModal() { ocultarPainel('modal'); }
+        function abrirModalLote() { document.getElementById('texto-lote').value = ''; mostrarPainel('modal-lote'); }
+        function fecharModalLote() { ocultarPainel('modal-lote'); }
+        function abrirModalFaixas() { mostrarPainel('modal-faixas'); }
+        function fecharModalFaixas() { ocultarPainel('modal-faixas'); }
+
+        // Garante que a função fique visível globalmente para o HTML
+let comprovanteZoom = 100;
+let comprovanteUrlAtual = '';
+let comprovanteEhPdf = false;
+
+function renderizarComprovanteZoom() {
+    const container = document.getElementById('container-conteudo-comprovante');
+    const zoomLabel = document.getElementById('comprovante-zoom-label');
+    if (!container) return;
+
+    if (zoomLabel) zoomLabel.textContent = comprovanteZoom + '%';
+
+    if (comprovanteEhPdf) {
+        // O visualizador nativo de PDF do navegador aceita o parâmetro #zoom.
+        const baseUrl = comprovanteUrlAtual.split('#')[0];
+        const src = baseUrl + '#zoom=' + comprovanteZoom;
+        container.innerHTML = `<iframe src="${src}" title="Comprovante PDF" class="w-full h-full min-h-[600px] rounded-lg border-0 bg-white"></iframe>`;
+    } else {
+        container.innerHTML = `
+            <div class="w-full h-full min-h-[600px] overflow-auto flex items-start justify-center p-6">
+                <img src="${comprovanteUrlAtual}" alt="Comprovante"
+                     style="width:${comprovanteZoom}%; max-width:none; height:auto;"
+                     class="rounded-lg shadow-sm transition-all duration-150">
+            </div>`;
+    }
+}
+
+window.abrirModalComprovante = function(url) {
+    if (!url) {
+        alert("Nenhum comprovante anexado ou URL inválida.");
+        return;
+    }
+
+    comprovanteUrlAtual = url;
+    comprovanteEhPdf = /\.pdf(?:[?#]|$)/i.test(url);
+    comprovanteZoom = 100;
+
+    const modal = document.getElementById('modal-comprovante');
+    if (modal) mostrarPainel(modal);
+
+    renderizarComprovanteZoom();
+};
+
+window.alterarZoomComprovante = function(delta) {
+    comprovanteZoom = Math.min(300, Math.max(25, comprovanteZoom + delta));
+    renderizarComprovanteZoom();
+};
+
+window.definirZoomComprovante = function(valor) {
+    comprovanteZoom = Math.min(300, Math.max(25, Number(valor) || 100));
+    renderizarComprovanteZoom();
+};
+
+window.fecharModalComprovante = function() {
+    const modal = document.getElementById('modal-comprovante');
+    ocultarPainel(modal, () => {
+        const container = document.getElementById('container-conteudo-comprovante');
+        if (container) container.innerHTML = '';
+        comprovanteUrlAtual = '';
+        comprovanteEhPdf = false;
+        comprovanteZoom = 100;
+    });
+};
+
+        // Garante acesso pelo botão HTML e atualiza a prévia após carregar os dados.
+        window.iniciarEnvioAutomatico = iniciarEnvioAutomatico;
+        window.verificarAgenteWhatsApp = verificarAgenteWhatsApp;
+        window.pararEnvioAutomatico = pararEnvioAutomatico;
+        const botaoAuto = document.getElementById('btn-auto-iniciar');
+        if (botaoAuto) {
+            botaoAuto.addEventListener('click', function(event) {
+                event.preventDefault();
+                window.iniciarEnvioAutomatico();
+            });
+        }
+        const renderizarOriginal = renderizar;
+        renderizar = function(...args) {
+            const resultado = renderizarOriginal.apply(this, args);
+            try { atualizarResumoFila(); } catch (e) { console.warn('Prévia da fila:', e); }
+            return resultado;
+        };
+
+        document.getElementById('template-mensagem')?.addEventListener('input', atualizarPreviaTemplate);
+        document.getElementById('template-nome')?.addEventListener('input', () => {
+            const feedback = document.getElementById('template-feedback');
+            if (feedback) { feedback.textContent = ''; feedback.classList.remove('is-success'); }
+        });
+        document.addEventListener('click', event => {
+            const dropdown = document.getElementById('filtro-faixas-dropdown');
+            if (dropdown?.open && !dropdown.contains(event.target)) dropdown.open = false;
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                const dropdown = document.getElementById('filtro-faixas-dropdown');
+                if (dropdown?.open) dropdown.open = false;
+            }
+        });
+
+        window.onload = iniciarAutenticacao;
+    </script>
+
+    <!-- Modal de Visualização de Comprovante -->
+    <div id="modal-comprovante" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 z-[60] hidden">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[94vh] p-4 md:p-5 relative flex flex-col">
+            <div class="flex flex-wrap justify-between items-center gap-3 pb-3 border-b border-slate-100 mb-3">
+                <h3 class="text-sm font-bold text-slate-800">📄 Visualizar Comprovante</h3>
+
+                <div class="flex items-center gap-1.5">
+                    <button type="button" onclick="definirZoomComprovante(75)" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold" title="75%">75%</button>
+                    <button type="button" onclick="definirZoomComprovante(100)" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold" title="Tamanho normal">100%</button>
+                    <button type="button" onclick="definirZoomComprovante(150)" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold" title="150%">150%</button>
+                    <button type="button" onclick="alterarZoomComprovante(-25)" class="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-lg font-black" title="Diminuir zoom">−</button>
+                    <span id="comprovante-zoom-label" class="w-12 text-center text-xs font-black text-slate-600">100%</span>
+                    <button type="button" onclick="alterarZoomComprovante(25)" class="w-9 h-9 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-lg font-black" title="Aumentar zoom">+</button>
+                    <button type="button" onclick="fecharModalComprovante()" class="ml-2 w-9 h-9 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-lg" title="Fechar">✕</button>
+                </div>
+            </div>
+
+            <div id="container-conteudo-comprovante" class="flex-1 min-h-0 overflow-auto flex items-start justify-center bg-slate-100 rounded-xl p-2">
+                <!-- Conteúdo injetado via JavaScript -->
+            </div>
+        </div>
+    </div>
+</body>
+</html>
